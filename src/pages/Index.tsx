@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +12,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import AdminPanel from '@/components/AdminPanel';
-import LoginForm from '@/components/LoginForm';
 
 const mockDistricts = [
   { id: 1, name: 'Новотроицкое (центр)', stores: ['Магнит', 'Пятёрочка', 'Перекрёсток'] },
@@ -42,7 +42,7 @@ const mockHeatmapData = [
 
 const Index = () => {
   const { toast } = useToast();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const navigate = useNavigate();
   const [userRole, setUserRole] = useState<'operator' | 'admin' | 'superadmin'>('operator');
   const [username, setUsername] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
@@ -53,11 +53,17 @@ const Index = () => {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [availableStores, setAvailableStores] = useState<string[]>([]);
 
-  const handleLogin = (role: 'operator' | 'admin' | 'superadmin', user: string) => {
-    setUserRole(role);
-    setUsername(user);
-    setIsAuthenticated(true);
-  };
+  useEffect(() => {
+    const role = localStorage.getItem('userRole') as 'operator' | 'admin' | 'superadmin' | null;
+    const user = localStorage.getItem('username');
+    
+    if (!role || !user) {
+      navigate('/login');
+    } else {
+      setUserRole(role);
+      setUsername(user);
+    }
+  }, [navigate]);
 
   const handleDistrictChange = (districtName: string) => {
     setSelectedDistrict(districtName);
@@ -66,9 +72,11 @@ const Index = () => {
     setSelectedStore('');
   };
 
-  if (!isAuthenticated) {
-    return <LoginForm onLogin={handleLogin} />;
-  }
+  const handleLogout = () => {
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('username');
+    navigate('/login');
+  };
 
   const handleSubmitPrice = () => {
     if (!selectedDistrict || !selectedStore || !selectedProduct || !price) {
@@ -146,11 +154,7 @@ const Index = () => {
               <Button 
                 variant="ghost" 
                 size="icon"
-                onClick={() => {
-                  setIsAuthenticated(false);
-                  setUserRole('operator');
-                  setUsername('');
-                }}
+                onClick={handleLogout}
               >
                 <Icon name="LogOut" size={20} />
               </Button>
