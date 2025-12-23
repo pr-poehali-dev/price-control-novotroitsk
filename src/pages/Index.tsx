@@ -117,6 +117,7 @@ const Index = () => {
         {userRole === 'admin' ? (
           <AdminPanel />
         ) : (
+          <>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
           <Card className="hover-scale">
             <CardHeader className="pb-3">
@@ -419,6 +420,7 @@ const Index = () => {
             </Card>
           </TabsContent>
         </Tabs>
+          </>
         )}
       </main>
     </div>
