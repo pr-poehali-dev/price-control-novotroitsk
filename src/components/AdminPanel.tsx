@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import TelegramNotifications from './TelegramNotifications';
+import ImportExport from './ImportExport';
 
 const mockUsers = [
   { id: 1, login: 'operator1', role: 'Оператор', status: 'active', lastLogin: '2024-01-15 14:30' },
@@ -67,7 +68,7 @@ const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="users" className="gap-2">
             <Icon name="Users" size={16} />
             Пользователи
@@ -79,6 +80,10 @@ const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
           <TabsTrigger value="data" className="gap-2">
             <Icon name="FileEdit" size={16} />
             Данные
+          </TabsTrigger>
+          <TabsTrigger value="import-export" className="gap-2">
+            <Icon name="ArrowDownUp" size={16} />
+            Импорт/Экспорт
           </TabsTrigger>
           <TabsTrigger value="reports" className="gap-2">
             <Icon name="FileBarChart" size={16} />
@@ -335,10 +340,6 @@ const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
                     </Button>
                   </div>
                 </div>
-                <Button variant="outline" className="w-full mt-4 gap-2">
-                  <Icon name="Upload" size={16} />
-                  Импорт из Excel/CSV
-                </Button>
               </CardContent>
             </Card>
 
@@ -422,10 +423,6 @@ const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
                     </Button>
                   </div>
                 </div>
-                <Button variant="outline" className="w-full mt-4 gap-2">
-                  <Icon name="Upload" size={16} />
-                  Импорт из Excel/CSV
-                </Button>
               </CardContent>
             </Card>
 
@@ -544,6 +541,10 @@ const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="import-export" className="animate-fade-in">
+          <ImportExport />
         </TabsContent>
 
         <TabsContent value="reports" className="animate-fade-in">

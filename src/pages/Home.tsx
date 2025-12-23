@@ -28,13 +28,13 @@ const mockStoreStats = [
 ];
 
 const Home = () => {
-  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
-  const [selectedStore, setSelectedStore] = useState<string>('');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('all');
+  const [selectedStore, setSelectedStore] = useState<string>('all');
   const [searchProduct, setSearchProduct] = useState('');
 
   const filteredData = mockPriceData.filter((item) => {
-    if (selectedDistrict && item.district !== selectedDistrict) return false;
-    if (selectedStore && item.store !== selectedStore) return false;
+    if (selectedDistrict !== 'all' && item.district !== selectedDistrict) return false;
+    if (selectedStore !== 'all' && item.store !== selectedStore) return false;
     if (searchProduct && !item.product.toLowerCase().includes(searchProduct.toLowerCase())) return false;
     return true;
   });
@@ -145,7 +145,7 @@ const Home = () => {
                         <SelectValue placeholder="Все районы" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Все районы</SelectItem>
+                        <SelectItem value="all">Все районы</SelectItem>
                         {mockDistricts.map((district) => (
                           <SelectItem key={district} value={district}>{district}</SelectItem>
                         ))}
@@ -160,7 +160,7 @@ const Home = () => {
                         <SelectValue placeholder="Все магазины" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Все магазины</SelectItem>
+                        <SelectItem value="all">Все магазины</SelectItem>
                         {mockStores.map((store) => (
                           <SelectItem key={store} value={store}>{store}</SelectItem>
                         ))}
