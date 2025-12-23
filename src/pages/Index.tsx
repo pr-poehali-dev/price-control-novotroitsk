@@ -7,16 +7,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import AdminPanel from '@/components/AdminPanel';
+import LoginForm from '@/components/LoginForm';
 
-const mockStores = ['Магнит', 'Пятёрочка', 'Лента', 'Перекрёсток'];
+const mockDistricts = [
+  { id: 1, name: 'Новотроицкое (центр)', stores: ['Магнит', 'Пятёрочка', 'Перекрёсток'] },
+  { id: 2, name: 'Северный район', stores: ['Лента', 'Дикси'] },
+  { id: 3, name: 'Западный район', stores: ['Магнит', 'Монетка'] },
+  { id: 4, name: 'Южный район', stores: ['Пятёрочка', 'Верный'] },
+];
+
 const mockCategories = ['Молочные продукты', 'Хлеб и выпечка', 'Мясо и птица', 'Овощи и фрукты'];
 const mockProducts = [
-  { id: 1, name: 'Молоко 3.2%', category: 'Молочные продукты', minPrice: 65, maxPrice: 85 },
-  { id: 2, name: 'Хлеб белый', category: 'Хлеб и выпечка', minPrice: 35, maxPrice: 50 },
-  { id: 3, name: 'Куриная грудка', category: 'Мясо и птица', minPrice: 280, maxPrice: 350 },
+  { id: 1, name: 'Молоко 3.2%', category: 'Молочные продукты', minPrice: 65, maxPrice: 85, photoRequired: false },
+  { id: 2, name: 'Хлеб белый', category: 'Хлеб и выпечка', minPrice: 35, maxPrice: 50, photoRequired: true },
+  { id: 3, name: 'Куриная грудка', category: 'Мясо и птица', minPrice: 280, maxPrice: 350, photoRequired: false },
 ];
 
 const mockHistory = [
@@ -34,14 +42,34 @@ const mockHeatmapData = [
 
 const Index = () => {
   const { toast } = useToast();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState<'operator' | 'admin'>('operator');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedStore, setSelectedStore] = useState('');
   const [selectedProduct, setSelectedProduct] = useState('');
   const [price, setPrice] = useState('');
+  const [comment, setComment] = useState('');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [userRole, setUserRole] = useState<'operator' | 'admin'>('operator');
+  const [availableStores, setAvailableStores] = useState<string[]>([]);
+
+  const handleLogin = (role: 'operator' | 'admin') => {
+    setUserRole(role);
+    setIsAuthenticated(true);
+  };
+
+  const handleDistrictChange = (districtName: string) => {
+    setSelectedDistrict(districtName);
+    const district = mockDistricts.find(d => d.name === districtName);
+    setAvailableStores(district?.stores || []);
+    setSelectedStore('');
+  };
+
+  if (!isAuthenticated) {
+    return <LoginForm onLogin={handleLogin} />;
+  }
 
   const handleSubmitPrice = () => {
-    if (!selectedStore || !selectedProduct || !price) {
+    if (!selectedDistrict || !selectedStore || !selectedProduct || !price) {
       toast({
         title: 'Ошибка',
         description: 'Заполните все обязательные поля',
@@ -53,22 +81,37 @@ const Index = () => {
     const product = mockProducts.find(p => p.name === selectedProduct);
     const priceNum = parseFloat(price);
 
-    if (product && (priceNum < product.minPrice || priceNum > product.maxPrice)) {
+    if (product?.photoRequired && !photoFile) {
       toast({
-        title: '⚠️ Предупреждение',
-        description: `Цена выходит за допустимые пределы (${product.minPrice}–${product.maxPrice} ₽)`,
+        title: 'Ошибка',
+        description: 'Для этого товара обязательна фотофиксация',
         variant: 'destructive',
       });
-    } else {
-      toast({
-        title: 'Успешно',
-        description: 'Данные о цене сохранены',
-      });
-      setSelectedStore('');
-      setSelectedProduct('');
-      setPrice('');
-      setPhotoFile(null);
+      return;
     }
+
+    if (product && (priceNum < product.minPrice || priceNum > product.maxPrice)) {
+      if (!comment) {
+        toast({
+          title: '⚠️ Требуется комментарий',
+          description: 'Цена выходит за пределы. Укажите причину такой цены.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    toast({
+      title: 'Успешно',
+      description: 'Данные о цене сохранены',
+    });
+    setSelectedDistrict('');
+    setSelectedStore('');
+    setSelectedProduct('');
+    setPrice('');
+    setComment('');
+    setPhotoFile(null);
+    setAvailableStores([]);
   };
 
   const getHeatColor = (index: number) => {
@@ -197,13 +240,31 @@ const Index = () => {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="store">Магазин *</Label>
-                    <Select value={selectedStore} onValueChange={setSelectedStore}>
-                      <SelectTrigger id="store">
-                        <SelectValue placeholder="Выберите магазин" />
+                    <Label htmlFor="district">Населённый пункт *</Label>
+                    <Select value={selectedDistrict} onValueChange={handleDistrictChange}>
+                      <SelectTrigger id="district">
+                        <SelectValue placeholder="Выберите населённый пункт" />
                       </SelectTrigger>
                       <SelectContent>
-                        {mockStores.map((store) => (
+                        {mockDistricts.map((district) => (
+                          <SelectItem key={district.id} value={district.name}>{district.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="store">Магазин *</Label>
+                    <Select 
+                      value={selectedStore} 
+                      onValueChange={setSelectedStore}
+                      disabled={!selectedDistrict}
+                    >
+                      <SelectTrigger id="store">
+                        <SelectValue placeholder={selectedDistrict ? "Выберите магазин" : "Сначала выберите населённый пункт"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableStores.map((store) => (
                           <SelectItem key={store} value={store}>{store}</SelectItem>
                         ))}
                       </SelectContent>
@@ -219,7 +280,12 @@ const Index = () => {
                       <SelectContent>
                         {mockProducts.map((product) => (
                           <SelectItem key={product.id} value={product.name}>
-                            {product.name}
+                            <div className="flex items-center gap-2">
+                              {product.name}
+                              {product.photoRequired && (
+                                <Icon name="Camera" size={14} className="text-primary" />
+                              )}
+                            </div>
                             <span className="text-xs text-muted-foreground ml-2">
                               ({product.minPrice}–{product.maxPrice}₽)
                             </span>
@@ -234,14 +300,38 @@ const Index = () => {
                     <Input
                       id="price"
                       type="number"
+                      step="0.01"
                       placeholder="0.00"
                       value={price}
                       onChange={(e) => setPrice(e.target.value)}
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="photo">Фотофиксация</Label>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="comment">Комментарий</Label>
+                    <Input
+                      id="comment"
+                      placeholder="Добавьте комментарий (обязателен при превышении лимита цен)"
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="photo">
+                      Фотофиксация
+                      {mockProducts.find(p => p.name === selectedProduct)?.photoRequired && (
+                        <span className="text-destructive ml-1">*</span>
+                      )}
+                    </Label>
+                    {mockProducts.find(p => p.name === selectedProduct)?.photoRequired && (
+                      <Alert className="mb-2">
+                        <Icon name="Camera" size={16} />
+                        <AlertDescription>
+                          Для данного товара обязательна загрузка фотографии ценника
+                        </AlertDescription>
+                      </Alert>
+                    )}
                     <div className="flex items-center gap-2">
                       <Input
                         id="photo"
@@ -262,10 +352,13 @@ const Index = () => {
 
                 <div className="flex justify-end gap-2 pt-4">
                   <Button variant="outline" onClick={() => {
+                    setSelectedDistrict('');
                     setSelectedStore('');
                     setSelectedProduct('');
                     setPrice('');
+                    setComment('');
                     setPhotoFile(null);
+                    setAvailableStores([]);
                   }}>
                     Очистить
                   </Button>
