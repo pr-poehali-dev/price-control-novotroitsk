@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Switch } from '@/components/ui/switch';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import TelegramNotifications from './TelegramNotifications';
 
 const mockUsers = [
   { id: 1, login: 'operator1', role: 'Оператор', status: 'active', lastLogin: '2024-01-15 14:30' },
@@ -66,7 +67,7 @@ const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="users" className="gap-2">
             <Icon name="Users" size={16} />
             Пользователи
@@ -82,6 +83,10 @@ const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
           <TabsTrigger value="reports" className="gap-2">
             <Icon name="FileBarChart" size={16} />
             Отчёты
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="gap-2">
+            <Icon name="Send" size={16} />
+            Telegram
           </TabsTrigger>
           <TabsTrigger value="settings" className="gap-2">
             <Icon name="Settings" size={16} />
@@ -119,6 +124,13 @@ const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
                         <Input id="password" type="password" placeholder="••••••••" />
                       </div>
                       <div className="space-y-2">
+                        <Label htmlFor="telegram">Telegram ID / Номер телефона</Label>
+                        <Input id="telegram" placeholder="+7 (900) 123-45-67 или @username" />
+                        <p className="text-xs text-muted-foreground">
+                          Для получения уведомлений о пропущенных вводах данных
+                        </p>
+                      </div>
+                      <div className="space-y-2">
                         <Label htmlFor="role">Роль</Label>
                         <Select defaultValue="operator">
                           <SelectTrigger id="role">
@@ -152,6 +164,7 @@ const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
                   <TableRow>
                     <TableHead>Логин</TableHead>
                     <TableHead>Роль</TableHead>
+                    <TableHead>Telegram</TableHead>
                     <TableHead>Статус</TableHead>
                     <TableHead>Последний вход</TableHead>
                     <TableHead>Действия</TableHead>
@@ -165,6 +178,14 @@ const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
                         <Badge variant={user.role === 'Администратор' ? 'default' : 'secondary'}>
                           {user.role}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {user.role === 'Оператор' && (
+                          <div className="flex items-center gap-1">
+                            <Icon name="Send" size={14} className="text-primary" />
+                            <span className="text-xs">Подключен</span>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="gap-1">
@@ -633,6 +654,10 @@ const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
           </div>
         </TabsContent>
 
+        <TabsContent value="notifications" className="animate-fade-in">
+          <TelegramNotifications />
+        </TabsContent>
+
         <TabsContent value="settings" className="animate-fade-in">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
@@ -684,10 +709,27 @@ const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label>Напоминания операторам</Label>
-                    <p className="text-sm text-muted-foreground">Если не внесены данные</p>
+                    <Label>Напоминания операторам в Telegram</Label>
+                    <p className="text-sm text-muted-foreground">Если не внесены данные за 2 дня</p>
                   </div>
                   <Switch defaultChecked />
+                </div>
+                <div className="space-y-2 pt-2 border-t">
+                  <Label>Период проверки активности</Label>
+                  <Select defaultValue="2">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1 день</SelectItem>
+                      <SelectItem value="2">2 дня</SelectItem>
+                      <SelectItem value="3">3 дня</SelectItem>
+                      <SelectItem value="7">7 дней</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Если оператор не вводит данные за указанный период, отправляется уведомление в Telegram
+                  </p>
                 </div>
               </CardContent>
             </Card>
