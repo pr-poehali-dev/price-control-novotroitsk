@@ -43,7 +43,8 @@ const mockHeatmapData = [
 const Index = () => {
   const { toast } = useToast();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userRole, setUserRole] = useState<'operator' | 'admin'>('operator');
+  const [userRole, setUserRole] = useState<'operator' | 'admin' | 'superadmin'>('operator');
+  const [username, setUsername] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedStore, setSelectedStore] = useState('');
   const [selectedProduct, setSelectedProduct] = useState('');
@@ -52,8 +53,9 @@ const Index = () => {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [availableStores, setAvailableStores] = useState<string[]>([]);
 
-  const handleLogin = (role: 'operator' | 'admin') => {
+  const handleLogin = (role: 'operator' | 'admin' | 'superadmin', user: string) => {
     setUserRole(role);
+    setUsername(user);
     setIsAuthenticated(true);
   };
 
@@ -133,32 +135,33 @@ const Index = () => {
               <Icon name="Wifi" size={16} />
               Онлайн
             </Badge>
-            <Select value={userRole} onValueChange={(val) => setUserRole(val as 'operator' | 'admin')}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="operator">
-                  <div className="flex items-center gap-2">
-                    <Icon name="User" size={16} />
-                    Оператор
-                  </div>
-                </SelectItem>
-                <SelectItem value="admin">
-                  <div className="flex items-center gap-2">
-                    <Icon name="Shield" size={16} />
-                    Администратор
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Badge variant={userRole === 'superadmin' ? 'default' : 'secondary'} className="gap-2">
+                <Icon name={userRole === 'superadmin' ? 'Crown' : userRole === 'admin' ? 'Shield' : 'User'} size={16} />
+                {username}
+                {userRole === 'superadmin' && ' (Главный админ)'}
+                {userRole === 'admin' && ' (Админ)'}
+                {userRole === 'operator' && ' (Оператор)'}
+              </Badge>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => {
+                  setIsAuthenticated(false);
+                  setUserRole('operator');
+                  setUsername('');
+                }}
+              >
+                <Icon name="LogOut" size={20} />
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-6">
-        {userRole === 'admin' ? (
-          <AdminPanel />
+        {userRole === 'admin' || userRole === 'superadmin' ? (
+          <AdminPanel isSuperAdmin={userRole === 'superadmin'} />
         ) : (
           <>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">

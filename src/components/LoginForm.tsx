@@ -7,7 +7,7 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 
 interface LoginFormProps {
-  onLogin: (role: 'operator' | 'admin') => void;
+  onLogin: (role: 'operator' | 'admin' | 'superadmin', username: string) => void;
 }
 
 const LoginForm = ({ onLogin }: LoginFormProps) => {
@@ -31,18 +31,24 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
     setIsLoading(true);
 
     setTimeout(() => {
-      if (login === 'admin' && password === 'admin') {
+      if (login === 'Admin1' && password === '1A3g5m7t9$') {
+        toast({
+          title: 'Успешно',
+          description: 'Добро пожаловать, Главный Администратор!',
+        });
+        onLogin('superadmin', login);
+      } else if (login === 'admin' && password === 'admin') {
         toast({
           title: 'Успешно',
           description: 'Добро пожаловать, Администратор!',
         });
-        onLogin('admin');
+        onLogin('admin', login);
       } else if (login === 'operator' && password === 'operator') {
         toast({
           title: 'Успешно',
           description: 'Добро пожаловать, Оператор!',
         });
-        onLogin('operator');
+        onLogin('operator', login);
       } else {
         toast({
           title: 'Ошибка входа',
@@ -135,7 +141,8 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
               </button>
               <div className="pt-4 border-t">
                 <p className="text-xs text-muted-foreground text-center">
-                  Демо: admin/admin или operator/operator
+                  Демо: Admin1/1A3g5m7t9$ (главный админ)<br/>
+                  admin/admin (админ) или operator/operator (оператор)
                 </p>
               </div>
             </div>

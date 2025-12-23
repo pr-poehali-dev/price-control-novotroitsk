@@ -24,7 +24,11 @@ const mockAuditLog = [
   { id: 3, user: 'operator2', action: 'Удалил запись', details: 'Куриная грудка - 15.01.2024', timestamp: '2024-01-14 11:45' },
 ];
 
-const AdminPanel = () => {
+interface AdminPanelProps {
+  isSuperAdmin?: boolean;
+}
+
+const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
   const { toast } = useToast();
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
@@ -55,9 +59,9 @@ const AdminPanel = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold">Панель администратора</h2>
-        <Badge variant="secondary" className="gap-2">
-          <Icon name="Shield" size={16} />
-          Администратор
+        <Badge variant={isSuperAdmin ? 'default' : 'secondary'} className="gap-2">
+          <Icon name={isSuperAdmin ? 'Crown' : 'Shield'} size={16} />
+          {isSuperAdmin ? 'Главный администратор' : 'Администратор'}
         </Badge>
       </div>
 
@@ -122,9 +126,16 @@ const AdminPanel = () => {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="operator">Оператор</SelectItem>
-                            <SelectItem value="admin">Администратор</SelectItem>
+                            {isSuperAdmin && (
+                              <SelectItem value="admin">Администратор</SelectItem>
+                            )}
                           </SelectContent>
                         </Select>
+                        {!isSuperAdmin && (
+                          <p className="text-xs text-muted-foreground">
+                            Только главный администратор может создавать админов
+                          </p>
+                        )}
                       </div>
                     </div>
                     <DialogFooter>
