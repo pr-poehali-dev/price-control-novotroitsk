@@ -13,6 +13,8 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import TelegramNotifications from './TelegramNotifications';
 import ImportExport from './ImportExport';
+import SystemEditor from './SystemEditor';
+import BulkDataEditor from './BulkDataEditor';
 
 const mockUsers = [
   { id: 1, login: 'operator1', role: 'Оператор', status: 'active', lastLogin: '2024-01-15 14:30' },
@@ -68,7 +70,7 @@ const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className={`grid w-full ${isSuperAdmin ? 'grid-cols-8' : 'grid-cols-7'}`}>
           <TabsTrigger value="users" className="gap-2">
             <Icon name="Users" size={16} />
             Пользователи
@@ -97,6 +99,12 @@ const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
             <Icon name="Settings" size={16} />
             Настройки
           </TabsTrigger>
+          {isSuperAdmin && (
+            <TabsTrigger value="system-editor" className="gap-2">
+              <Icon name="Wrench" size={16} />
+              Редактор
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="users" className="animate-fade-in space-y-4">
@@ -475,72 +483,7 @@ const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
         </TabsContent>
 
         <TabsContent value="data" className="animate-fade-in">
-          <Card>
-            <CardHeader>
-              <CardTitle>Управление данными</CardTitle>
-              <CardDescription>Редактирование и массовые операции с записями о ценах</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Button variant="outline" className="gap-2">
-                  <Icon name="Filter" size={16} />
-                  Фильтры
-                </Button>
-                <Button variant="outline" className="gap-2">
-                  <Icon name="Trash2" size={16} />
-                  Массовое удаление
-                </Button>
-                <Button variant="outline" className="gap-2">
-                  <Icon name="Edit" size={16} />
-                  Массовое редактирование
-                </Button>
-              </div>
-
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <input type="checkbox" className="rounded" />
-                    </TableHead>
-                    <TableHead>Дата</TableHead>
-                    <TableHead>Магазин</TableHead>
-                    <TableHead>Товар</TableHead>
-                    <TableHead>Цена</TableHead>
-                    <TableHead>Оператор</TableHead>
-                    <TableHead>Действия</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {[
-                    { id: 1, date: '2024-01-15', store: 'Магнит', product: 'Молоко 3.2%', price: 72, operator: 'operator1' },
-                    { id: 2, date: '2024-01-15', store: 'Пятёрочка', product: 'Хлеб белый', price: 92, operator: 'operator2' },
-                    { id: 3, date: '2024-01-14', store: 'Лента', product: 'Куриная грудка', price: 310, operator: 'operator1' },
-                  ].map((record) => (
-                    <TableRow key={record.id}>
-                      <TableCell>
-                        <input type="checkbox" className="rounded" />
-                      </TableCell>
-                      <TableCell>{record.date}</TableCell>
-                      <TableCell>{record.store}</TableCell>
-                      <TableCell>{record.product}</TableCell>
-                      <TableCell className="font-semibold">{record.price}₽</TableCell>
-                      <TableCell className="text-muted-foreground">{record.operator}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="ghost" size="icon">
-                            <Icon name="Edit" size={16} />
-                          </Button>
-                          <Button variant="ghost" size="icon">
-                            <Icon name="Trash2" size={16} className="text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <BulkDataEditor />
         </TabsContent>
 
         <TabsContent value="import-export" className="animate-fade-in">
@@ -658,6 +601,12 @@ const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
         <TabsContent value="notifications" className="animate-fade-in">
           <TelegramNotifications />
         </TabsContent>
+
+        {isSuperAdmin && (
+          <TabsContent value="system-editor" className="animate-fade-in">
+            <SystemEditor />
+          </TabsContent>
+        )}
 
         <TabsContent value="settings" className="animate-fade-in">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
