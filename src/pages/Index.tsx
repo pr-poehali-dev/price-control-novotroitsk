@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import AdminPanel from '@/components/AdminPanel';
 
 const mockStores = ['Магнит', 'Пятёрочка', 'Лента', 'Перекрёсток'];
 const mockCategories = ['Молочные продукты', 'Хлеб и выпечка', 'Мясо и птица', 'Овощи и фрукты'];
@@ -37,6 +38,7 @@ const Index = () => {
   const [selectedProduct, setSelectedProduct] = useState('');
   const [price, setPrice] = useState('');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [userRole, setUserRole] = useState<'operator' | 'admin'>('operator');
 
   const handleSubmitPrice = () => {
     if (!selectedStore || !selectedProduct || !price) {
@@ -88,14 +90,33 @@ const Index = () => {
               <Icon name="Wifi" size={16} />
               Онлайн
             </Badge>
-            <Button variant="ghost" size="icon">
-              <Icon name="User" size={20} />
-            </Button>
+            <Select value={userRole} onValueChange={(val) => setUserRole(val as 'operator' | 'admin')}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="operator">
+                  <div className="flex items-center gap-2">
+                    <Icon name="User" size={16} />
+                    Оператор
+                  </div>
+                </SelectItem>
+                <SelectItem value="admin">
+                  <div className="flex items-center gap-2">
+                    <Icon name="Shield" size={16} />
+                    Администратор
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-6">
+        {userRole === 'admin' ? (
+          <AdminPanel />
+        ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
           <Card className="hover-scale">
             <CardHeader className="pb-3">
@@ -398,6 +419,7 @@ const Index = () => {
             </Card>
           </TabsContent>
         </Tabs>
+        )}
       </main>
     </div>
   );
