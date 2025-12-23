@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import { dataStore } from '@/lib/store';
 
 const Login = () => {
   const { toast } = useToast();
@@ -15,6 +16,13 @@ const Login = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [pageContent, setPageContent] = useState(dataStore.getPageContent());
+  const [systemConfig, setSystemConfig] = useState(dataStore.getSystemConfig());
+
+  useEffect(() => {
+    setPageContent(dataStore.getPageContent());
+    setSystemConfig(dataStore.getSystemConfig());
+  }, []);
 
   const handleLogin = async () => {
     if (!login || !password) {
@@ -29,34 +37,28 @@ const Login = () => {
     setIsLoading(true);
 
     setTimeout(() => {
-      if (login === 'Admin1' && password === '1A3g5m7t9$') {
-        localStorage.setItem('userRole', 'superadmin');
-        localStorage.setItem('username', login);
+      const user = dataStore.authenticateUser(login, password);
+      
+      if (user) {
+        localStorage.setItem('userRole', user.role);
+        localStorage.setItem('username', user.login);
+        localStorage.setItem('userId', user.id);
+        
+        const roleNames = {
+          superadmin: 'Главный Администратор',
+          admin: 'Администратор',
+          operator: 'Оператор',
+        };
+        
         toast({
           title: 'Успешно',
-          description: 'Добро пожаловать, Главный Администратор!',
-        });
-        navigate('/dashboard');
-      } else if (login === 'admin' && password === 'admin') {
-        localStorage.setItem('userRole', 'admin');
-        localStorage.setItem('username', login);
-        toast({
-          title: 'Успешно',
-          description: 'Добро пожаловать, Администратор!',
-        });
-        navigate('/dashboard');
-      } else if (login === 'operator' && password === 'operator') {
-        localStorage.setItem('userRole', 'operator');
-        localStorage.setItem('username', login);
-        toast({
-          title: 'Успешно',
-          description: 'Добро пожаловать, Оператор!',
+          description: `Добро пожаловать, ${roleNames[user.role]}!`,
         });
         navigate('/dashboard');
       } else {
         toast({
           title: 'Ошибка входа',
-          description: 'Неверный логин или пароль',
+          description: 'Неверный логин или пароль, или пользователь заблокирован',
           variant: 'destructive',
         });
       }
@@ -87,8 +89,8 @@ const Login = () => {
       <header className="border-b bg-white">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Icon name="TrendingUp" size={28} className="text-primary" />
-            <h1 className="text-2xl font-bold">Цена-Контроль</h1>
+            <Icon name={systemConfig.logoIcon as any} size={28} style={{ color: systemConfig.primaryColor }} />
+            <h1 className="text-2xl font-bold">{systemConfig.appName}</h1>
           </div>
           <Button variant="outline" onClick={() => navigate('/')}>
             <Icon name="ArrowLeft" size={16} className="mr-2" />
@@ -101,13 +103,13 @@ const Login = () => {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
-              <div className="bg-primary rounded-full p-4">
-                <Icon name="TrendingUp" size={32} className="text-white" />
+              <div className="rounded-full p-4" style={{ backgroundColor: systemConfig.primaryColor }}>
+                <Icon name={systemConfig.logoIcon as any} size={32} className="text-white" />
               </div>
             </div>
-            <CardTitle className="text-2xl">Вход для сотрудников</CardTitle>
+            <CardTitle className="text-2xl">{pageContent.loginTitle}</CardTitle>
             <CardDescription>
-              {showForgotPassword ? 'Восстановление пароля' : 'Система мониторинга цен Новотроицкого МО'}
+              {showForgotPassword ? 'Восстановление пароля' : pageContent.loginSubtitle}
             </CardDescription>
           </CardHeader>
           <CardContent>

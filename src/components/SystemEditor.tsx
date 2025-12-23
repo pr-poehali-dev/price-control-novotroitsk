@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import { dataStore } from '@/lib/store';
 
 interface SystemConfig {
   appName: string;
@@ -38,13 +39,11 @@ interface PageContent {
 const SystemEditor = () => {
   const { toast } = useToast();
   
-  const [systemConfig, setSystemConfig] = useState<SystemConfig>({
-    appName: 'Цена-Контроль Новотроицкое',
-    appDescription: 'Система мониторинга цен',
-    logoIcon: 'TrendingUp',
-    primaryColor: '#1EAEDB',
-    accentColor: '#F97316'
-  });
+  const [systemConfig, setSystemConfig] = useState<SystemConfig>(dataStore.getSystemConfig());
+
+  useEffect(() => {
+    setSystemConfig(dataStore.getSystemConfig());
+  }, []);
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([
     { id: '1', name: 'Пользователи', icon: 'Users', route: '/users', visible: true },
@@ -56,28 +55,49 @@ const SystemEditor = () => {
     { id: '7', name: 'Настройки', icon: 'Settings', route: '/settings', visible: true },
   ]);
 
+  const pageContentData = dataStore.getPageContent();
+  
   const [homePageContent, setHomePageContent] = useState<PageContent>({
     id: 'home',
-    title: 'Мониторинг цен в магазинах',
-    subtitle: 'Актуальная информация о ценах на продукты питания в Новотроицком муниципальном округе',
-    content: 'Система мониторинга цен создана для информирования жителей о актуальных ценах на продукты питания в местных магазинах.',
-    buttonText: 'Вход для сотрудников'
+    title: pageContentData.homeTitle,
+    subtitle: pageContentData.homeSubtitle,
+    content: pageContentData.homeContent,
+    buttonText: pageContentData.homeButtonText
   });
 
   const [loginPageContent, setLoginPageContent] = useState<PageContent>({
     id: 'login',
-    title: 'Вход для сотрудников',
-    subtitle: 'Система мониторинга цен Новотроицкого МО',
+    title: pageContentData.loginTitle,
+    subtitle: pageContentData.loginSubtitle,
     content: '',
   });
+
+  useEffect(() => {
+    const content = dataStore.getPageContent();
+    setHomePageContent({
+      id: 'home',
+      title: content.homeTitle,
+      subtitle: content.homeSubtitle,
+      content: content.homeContent,
+      buttonText: content.homeButtonText
+    });
+    setLoginPageContent({
+      id: 'login',
+      title: content.loginTitle,
+      subtitle: content.loginSubtitle,
+      content: '',
+    });
+  }, []);
 
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isMenuDialogOpen, setIsMenuDialogOpen] = useState(false);
 
   const handleSaveSystemConfig = () => {
+    dataStore.updateSystemConfig(systemConfig);
+    window.dispatchEvent(new Event('storage'));
     toast({
       title: 'Настройки сохранены',
-      description: 'Конфигурация системы успешно обновлена',
+      description: 'Конфигурация системы успешно обновлена. Перезагрузите страницу.',
     });
   };
 
@@ -102,9 +122,23 @@ const SystemEditor = () => {
   };
 
   const handleSavePageContent = (type: 'home' | 'login') => {
+    if (type === 'home') {
+      dataStore.updatePageContent({
+        homeTitle: homePageContent.title,
+        homeSubtitle: homePageContent.subtitle,
+        homeContent: homePageContent.content,
+        homeButtonText: homePageContent.buttonText || '',
+      });
+    } else {
+      dataStore.updatePageContent({
+        loginTitle: loginPageContent.title,
+        loginSubtitle: loginPageContent.subtitle,
+      });
+    }
+    window.dispatchEvent(new Event('storage'));
     toast({
       title: 'Контент сохранён',
-      description: `Содержимое страницы "${type === 'home' ? 'Главная' : 'Вход'}" обновлено`,
+      description: `Содержимое страницы "${type === 'home' ? 'Главная' : 'Вход'}" обновлено. Перезагрузите главную страницу для просмотра.`,
     });
   };
 
