@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import AdminPanel from '@/components/AdminPanel';
 import { dataStore } from '@/lib/store';
+import * as XLSX from 'xlsx';
 
 const mockDistricts = [
   { id: 1, name: 'Новотроицкое (центр)', stores: ['Магнит', 'Пятёрочка', 'Перекрёсток'] },
@@ -61,6 +62,8 @@ const Index = () => {
   
   const [isBulkInputMode, setIsBulkInputMode] = useState(false);
   const [bulkPriceList, setBulkPriceList] = useState<Array<{productName: string, price: string, comment?: string}>>([]);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const role = localStorage.getItem('userRole') as 'operator' | 'admin' | 'superadmin' | null;
@@ -197,6 +200,93 @@ const Index = () => {
     setSelectedStore('');
     setAvailableStores([]);
     setIsBulkInputMode(false);
+  };
+  
+  const handleExcelImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json<{[key: string]: string | number}>(firstSheet);
+        
+        const products = dataStore.getProducts();
+        const importedPrices: Array<{productName: string, price: string, comment?: string}> = [];
+        
+        jsonData.forEach((row) => {
+          const productName = String(row['Товар'] || row['Название товара'] || row['Product'] || '');
+          const price = String(row['Цена'] || row['Price'] || '');
+          const comment = String(row['Комментарий'] || row['Comment'] || '');
+          
+          if (productName && price) {
+            const product = products.find(p => 
+              p.name.toLowerCase().includes(productName.toLowerCase()) || 
+              productName.toLowerCase().includes(p.name.toLowerCase())
+            );
+            
+            if (product) {
+              importedPrices.push({
+                productName: product.name,
+                price: price.toString().replace(/[^0-9.]/g, ''),
+                comment: comment || undefined
+              });
+            }
+          }
+        });
+        
+        if (importedPrices.length > 0) {
+          setBulkPriceList([...bulkPriceList, ...importedPrices]);
+          toast({
+            title: 'Импорт успешен',
+            description: `Добавлено ${importedPrices.length} товаров из Excel`,
+          });
+          setIsImportDialogOpen(false);
+        } else {
+          toast({
+            title: 'Ошибка импорта',
+            description: 'Не найдено подходящих товаров в файле. Проверьте формат.',
+            variant: 'destructive',
+          });
+        }
+      } catch (error) {
+        toast({
+          title: 'Ошибка чтения файла',
+          description: 'Не удалось прочитать Excel файл',
+          variant: 'destructive',
+        });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+  
+  const handleDownloadTemplate = () => {
+    const products = dataStore.getProducts();
+    const templateData = products.map(p => ({
+      'Товар': p.name,
+      'Цена': '',
+      'Комментарий': '',
+      'Минимальная цена': p.minPrice,
+      'Максимальная цена': p.maxPrice
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Шаблон');
+    
+    XLSX.writeFile(wb, 'шаблон_импорта_цен.xlsx');
+    
+    toast({
+      title: 'Шаблон скачан',
+      description: 'Заполните файл и импортируйте обратно',
+    });
   };
 
   const handleLogout = () => {
@@ -384,6 +474,56 @@ const Index = () => {
                   <Icon name="List" size={16} />
                   Списочный ввод
                 </Button>
+                {isBulkInputMode && (
+                  <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="secondary" className="gap-2">
+                        <Icon name="FileSpreadsheet" size={16} />
+                        Импорт из Excel
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Импорт цен из Excel</DialogTitle>
+                        <DialogDescription>
+                          Загрузите Excel файл с ценами для быстрого добавления
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <Alert>
+                          <Icon name="Info" size={16} />
+                          <AlertDescription>
+                            <p className="font-medium mb-2">Формат файла:</p>
+                            <ul className="text-sm space-y-1 list-disc list-inside">
+                              <li>Колонка "Товар" — название товара</li>
+                              <li>Колонка "Цена" — цена в рублях</li>
+                              <li>Колонка "Комментарий" — необязательно</li>
+                            </ul>
+                          </AlertDescription>
+                        </Alert>
+                        
+                        <div className="space-y-2">
+                          <Label>Выберите Excel файл</Label>
+                          <Input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".xlsx,.xls"
+                            onChange={handleExcelImport}
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={handleDownloadTemplate} className="gap-2">
+                          <Icon name="Download" size={16} />
+                          Скачать шаблон
+                        </Button>
+                        <Button variant="secondary" onClick={() => setIsImportDialogOpen(false)}>
+                          Закрыть
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
               </div>
               {bulkPriceList.length > 0 && isBulkInputMode && (
                 <Badge variant="secondary" className="gap-2">
