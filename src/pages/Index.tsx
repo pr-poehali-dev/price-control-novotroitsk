@@ -9,9 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import AdminPanel from '@/components/AdminPanel';
+import { dataStore } from '@/lib/store';
 
 const mockDistricts = [
   { id: 1, name: 'Новотроицкое (центр)', stores: ['Магнит', 'Пятёрочка', 'Перекрёсток'] },
@@ -52,6 +54,13 @@ const Index = () => {
   const [comment, setComment] = useState('');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [availableStores, setAvailableStores] = useState<string[]>([]);
+  
+  const [isAddStoreDialogOpen, setIsAddStoreDialogOpen] = useState(false);
+  const [newStoreName, setNewStoreName] = useState('');
+  const [newStoreAddress, setNewStoreAddress] = useState('');
+  
+  const [isBulkInputMode, setIsBulkInputMode] = useState(false);
+  const [bulkPriceList, setBulkPriceList] = useState<Array<{productName: string, price: string, comment?: string}>>([]);
 
   useEffect(() => {
     const role = localStorage.getItem('userRole') as 'operator' | 'admin' | 'superadmin' | null;
@@ -63,13 +72,131 @@ const Index = () => {
       setUserRole(role);
       setUsername(user);
     }
+    
+    const districts = dataStore.getDistricts();
+    if (districts.length > 0) {
+      const stores = dataStore.getStores();
+      setAvailableStores(Array.from(new Set(stores.map(s => s.name))));
+    }
   }, [navigate]);
 
   const handleDistrictChange = (districtName: string) => {
     setSelectedDistrict(districtName);
-    const district = mockDistricts.find(d => d.name === districtName);
-    setAvailableStores(district?.stores || []);
+    const stores = dataStore.getStoresByDistrict(districtName);
+    setAvailableStores(Array.from(new Set(stores.map(s => s.name))));
     setSelectedStore('');
+  };
+  
+  const handleAddNewStore = () => {
+    if (!newStoreName || !selectedDistrict) {
+      toast({
+        title: 'Ошибка',
+        description: 'Заполните название магазина и выберите населённый пункт',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    dataStore.addStore({
+      name: newStoreName,
+      district: selectedDistrict,
+      address: newStoreAddress || undefined,
+    });
+    
+    const updatedStores = dataStore.getStoresByDistrict(selectedDistrict);
+    setAvailableStores(Array.from(new Set(updatedStores.map(s => s.name))));
+    setSelectedStore(newStoreName);
+    
+    toast({
+      title: 'Магазин добавлен',
+      description: `${newStoreName} успешно добавлен в ${selectedDistrict}`,
+    });
+    
+    setNewStoreName('');
+    setNewStoreAddress('');
+    setIsAddStoreDialogOpen(false);
+  };
+  
+  const handleAddProductToBulkList = () => {
+    if (!selectedProduct || !price) {
+      toast({
+        title: 'Ошибка',
+        description: 'Выберите товар и укажите цену',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setBulkPriceList([...bulkPriceList, {
+      productName: selectedProduct,
+      price: price,
+      comment: comment || undefined,
+    }]);
+    
+    setSelectedProduct('');
+    setPrice('');
+    setComment('');
+    
+    toast({
+      title: 'Добавлено в список',
+      description: `${selectedProduct} — ${price}₽`,
+    });
+  };
+  
+  const handleRemoveFromBulkList = (index: number) => {
+    setBulkPriceList(bulkPriceList.filter((_, i) => i !== index));
+  };
+  
+  const handleSaveBulkPrices = () => {
+    if (!selectedDistrict || !selectedStore || bulkPriceList.length === 0) {
+      toast({
+        title: 'Ошибка',
+        description: 'Выберите магазин и добавьте хотя бы один товар',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    const userId = localStorage.getItem('userId') || '3';
+    const stores = dataStore.getStores();
+    const products = dataStore.getProducts();
+    const store = stores.find(s => s.name === selectedStore && s.district === selectedDistrict);
+    
+    if (!store) {
+      toast({
+        title: 'Ошибка',
+        description: 'Магазин не найден',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    let successCount = 0;
+    bulkPriceList.forEach(item => {
+      const product = products.find(p => p.name === item.productName);
+      if (product) {
+        dataStore.addPriceRecord({
+          date: new Date().toISOString().split('T')[0],
+          storeId: store.id,
+          productId: product.id,
+          price: parseFloat(item.price),
+          comment: item.comment,
+          operatorId: userId,
+        });
+        successCount++;
+      }
+    });
+    
+    toast({
+      title: 'Данные сохранены',
+      description: `Успешно добавлено ${successCount} записей о ценах`,
+    });
+    
+    setBulkPriceList([]);
+    setSelectedDistrict('');
+    setSelectedStore('');
+    setAvailableStores([]);
+    setIsBulkInputMode(false);
   };
 
   const handleLogout = () => {
@@ -239,10 +366,41 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="input" className="space-y-4 animate-fade-in">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={!isBulkInputMode ? 'default' : 'outline'}
+                  onClick={() => setIsBulkInputMode(false)}
+                  className="gap-2"
+                >
+                  <Icon name="PenSquare" size={16} />
+                  Одиночный ввод
+                </Button>
+                <Button
+                  variant={isBulkInputMode ? 'default' : 'outline'}
+                  onClick={() => setIsBulkInputMode(true)}
+                  className="gap-2"
+                >
+                  <Icon name="List" size={16} />
+                  Списочный ввод
+                </Button>
+              </div>
+              {bulkPriceList.length > 0 && isBulkInputMode && (
+                <Badge variant="secondary" className="gap-2">
+                  <Icon name="Package" size={14} />
+                  {bulkPriceList.length} товаров в списке
+                </Badge>
+              )}
+            </div>
+
             <Card>
               <CardHeader>
-                <CardTitle>Добавить цену</CardTitle>
-                <CardDescription>Внесите данные о цене товара в магазине</CardDescription>
+                <CardTitle>{isBulkInputMode ? 'Списочный ввод цен' : 'Добавить цену'}</CardTitle>
+                <CardDescription>
+                  {isBulkInputMode 
+                    ? 'Добавьте несколько товаров для одного магазина и сохраните всё сразу'
+                    : 'Внесите данные о цене товара в магазине'}
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -261,7 +419,59 @@ const Index = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="store">Магазин *</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="store">Магазин *</Label>
+                      <Dialog open={isAddStoreDialogOpen} onOpenChange={setIsAddStoreDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="gap-1 h-6"
+                            disabled={!selectedDistrict}
+                          >
+                            <Icon name="Plus" size={14} />
+                            Добавить магазин
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Добавить новый магазин</DialogTitle>
+                            <DialogDescription>
+                              Создайте новый магазин в населённом пункте: {selectedDistrict}
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="newStoreName">Название магазина *</Label>
+                              <Input
+                                id="newStoreName"
+                                placeholder="Пятёрочка, Магнит, и т.д."
+                                value={newStoreName}
+                                onChange={(e) => setNewStoreName(e.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="newStoreAddress">Адрес (необязательно)</Label>
+                              <Input
+                                id="newStoreAddress"
+                                placeholder="ул. Ленина, 15"
+                                value={newStoreAddress}
+                                onChange={(e) => setNewStoreAddress(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsAddStoreDialogOpen(false)}>
+                              Отмена
+                            </Button>
+                            <Button onClick={handleAddNewStore}>
+                              <Icon name="Plus" size={16} className="mr-2" />
+                              Добавить
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                     <Select 
                       value={selectedStore} 
                       onValueChange={setSelectedStore}
@@ -357,6 +567,34 @@ const Index = () => {
                   </div>
                 </div>
 
+                {isBulkInputMode && bulkPriceList.length > 0 && (
+                  <div className="border rounded-lg p-4 space-y-2">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <Icon name="List" size={16} />
+                      Список товаров для добавления ({bulkPriceList.length})
+                    </h4>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {bulkPriceList.map((item, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
+                          <div className="flex-1">
+                            <p className="font-medium">{item.productName}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {item.price}₽ {item.comment && `• ${item.comment}`}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveFromBulkList(index)}
+                          >
+                            <Icon name="X" size={16} />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex justify-end gap-2 pt-4">
                   <Button variant="outline" onClick={() => {
                     setSelectedDistrict('');
@@ -366,13 +604,31 @@ const Index = () => {
                     setComment('');
                     setPhotoFile(null);
                     setAvailableStores([]);
+                    setBulkPriceList([]);
                   }}>
                     Очистить
                   </Button>
-                  <Button onClick={handleSubmitPrice} className="gap-2">
-                    <Icon name="Save" size={16} />
-                    Сохранить
-                  </Button>
+                  {isBulkInputMode ? (
+                    <>
+                      <Button onClick={handleAddProductToBulkList} variant="secondary" className="gap-2">
+                        <Icon name="Plus" size={16} />
+                        Добавить в список
+                      </Button>
+                      <Button 
+                        onClick={handleSaveBulkPrices} 
+                        className="gap-2"
+                        disabled={bulkPriceList.length === 0}
+                      >
+                        <Icon name="Save" size={16} />
+                        Сохранить все ({bulkPriceList.length})
+                      </Button>
+                    </>
+                  ) : (
+                    <Button onClick={handleSubmitPrice} className="gap-2">
+                      <Icon name="Save" size={16} />
+                      Сохранить
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
