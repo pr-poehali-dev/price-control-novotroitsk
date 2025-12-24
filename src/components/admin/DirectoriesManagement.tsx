@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,17 +22,101 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
   const [isStoreDialogOpen, setIsStoreDialogOpen] = useState(false);
   const [selectedDirectory, setSelectedDirectory] = useState<'products' | 'stores'>('products');
 
-  const products = dataStore.getProducts();
-  const stores = dataStore.getStores();
+  const [products, setProducts] = useState<any[]>([]);
+  const [stores, setStores] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleAddProduct = () => {
-    toast({ title: 'Успешно', description: 'Товар добавлен в справочник' });
-    setIsProductDialogOpen(false);
+  // Загрузка товаров из БД
+  const loadProducts = async () => {
+    try {
+      const response = await fetch('https://functions.poehali.dev/4b95609f-33c9-4593-afab-bcbaeaa8624c');
+      const data = await response.json();
+      setProducts(data);
+    } catch (error) {
+      toast({ title: 'Ошибка', description: 'Не удалось загрузить товары', variant: 'destructive' });
+    }
   };
 
-  const handleAddStore = () => {
-    toast({ title: 'Успешно', description: 'Магазин добавлен в справочник' });
-    setIsStoreDialogOpen(false);
+  // Загрузка магазинов из БД
+  const loadStores = async () => {
+    try {
+      const response = await fetch('https://functions.poehali.dev/ec0b8f6d-4d40-49e9-862a-157e23c0f6f2');
+      const data = await response.json();
+      setStores(data);
+    } catch (error) {
+      toast({ title: 'Ошибка', description: 'Не удалось загрузить магазины', variant: 'destructive' });
+    }
+  };
+
+  useEffect(() => {
+    loadProducts();
+    loadStores();
+  }, []);
+
+  const handleAddProduct = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    const formData = new FormData(e.currentTarget);
+    const newProduct = {
+      name: formData.get('name') as string,
+      category: formData.get('category') as string,
+      minPrice: parseFloat(formData.get('minPrice') as string),
+      maxPrice: parseFloat(formData.get('maxPrice') as string),
+      photoRequired: formData.get('photoRequired') === 'true'
+    };
+    
+    try {
+      const response = await fetch('https://functions.poehali.dev/4b95609f-33c9-4593-afab-bcbaeaa8624c', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newProduct)
+      });
+      
+      if (response.ok) {
+        toast({ title: 'Успешно', description: 'Товар добавлен в справочник' });
+        setIsProductDialogOpen(false);
+        await loadProducts();
+      } else {
+        throw new Error('Ошибка при добавлении');
+      }
+    } catch (error) {
+      toast({ title: 'Ошибка', description: 'Не удалось добавить товар', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddStore = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    const formData = new FormData(e.currentTarget);
+    const newStore = {
+      name: formData.get('name') as string,
+      district: formData.get('district') as string,
+      address: formData.get('address') as string
+    };
+    
+    try {
+      const response = await fetch('https://functions.poehali.dev/ec0b8f6d-4d40-49e9-862a-157e23c0f6f2', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newStore)
+      });
+      
+      if (response.ok) {
+        toast({ title: 'Успешно', description: 'Магазин добавлен в справочник' });
+        setIsStoreDialogOpen(false);
+        await loadStores();
+      } else {
+        throw new Error('Ошибка при добавлении');
+      }
+    } catch (error) {
+      toast({ title: 'Ошибка', description: 'Не удалось добавить магазин', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -72,48 +156,53 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Новый товар</DialogTitle>
-                    <DialogDescription>Добавьте товар в справочник</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="product-name">Название товара</Label>
-                      <Input id="product-name" placeholder="Молоко 3.2%" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
+                  <form onSubmit={handleAddProduct}>
+                    <DialogHeader>
+                      <DialogTitle>Новый товар</DialogTitle>
+                      <DialogDescription>Добавьте товар в справочник</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
                       <div className="space-y-2">
-                        <Label htmlFor="min-price">Мин. цена (₽)</Label>
-                        <Input id="min-price" type="number" placeholder="50" />
+                        <Label htmlFor="product-name">Название товара</Label>
+                        <Input id="product-name" name="name" placeholder="Молоко 3.2%" required />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="min-price">Мин. цена (₽)</Label>
+                          <Input id="min-price" name="minPrice" type="number" step="0.01" placeholder="50" required />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="max-price">Макс. цена (₽)</Label>
+                          <Input id="max-price" name="maxPrice" type="number" step="0.01" placeholder="100" required />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="photo-required">Требуется фото</Label>
+                        <Switch id="photo-required" name="photoRequired" />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="max-price">Макс. цена (₽)</Label>
-                        <Input id="max-price" type="number" placeholder="100" />
+                        <Label htmlFor="category">Категория</Label>
+                        <Select name="category" defaultValue="Молочные продукты">
+                          <SelectTrigger id="category">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Молочные продукты">Молочные продукты</SelectItem>
+                            <SelectItem value="Мясо и птица">Мясные продукты</SelectItem>
+                            <SelectItem value="Хлеб и выпечка">Хлебобулочные изделия</SelectItem>
+                            <SelectItem value="Овощи">Овощи и фрукты</SelectItem>
+                            <SelectItem value="Бакалея">Бакалея</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="photo-required">Требуется фото</Label>
-                      <Switch id="photo-required" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="category">Категория</Label>
-                      <Select defaultValue="dairy">
-                        <SelectTrigger id="category">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="dairy">Молочные продукты</SelectItem>
-                          <SelectItem value="meat">Мясные продукты</SelectItem>
-                          <SelectItem value="bakery">Хлебобулочные изделия</SelectItem>
-                          <SelectItem value="vegetables">Овощи и фрукты</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsProductDialogOpen(false)}>Отмена</Button>
-                    <Button onClick={handleAddProduct}>Добавить</Button>
-                  </DialogFooter>
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => setIsProductDialogOpen(false)}>Отмена</Button>
+                      <Button type="submit" disabled={isLoading}>
+                        {isLoading ? 'Добавление...' : 'Добавить'}
+                      </Button>
+                    </DialogFooter>
+                  </form>
                 </DialogContent>
               </Dialog>
             </div>
@@ -177,37 +266,42 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Новый магазин</DialogTitle>
-                    <DialogDescription>Добавьте магазин в справочник</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="store-name">Название магазина</Label>
-                      <Input id="store-name" placeholder="Пятёрочка" />
+                  <form onSubmit={handleAddStore}>
+                    <DialogHeader>
+                      <DialogTitle>Новый магазин</DialogTitle>
+                      <DialogDescription>Добавьте магазин в справочник</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="store-name">Название магазина</Label>
+                        <Input id="store-name" name="name" placeholder="Пятёрочка" required />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="store-district">Район</Label>
+                        <Select name="district" defaultValue="Новотроицкое (центр)">
+                          <SelectTrigger id="store-district">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Новотроицкое (центр)">Новотроицкое (центр)</SelectItem>
+                            <SelectItem value="Северный район">Северный район</SelectItem>
+                            <SelectItem value="Западный район">Западный район</SelectItem>
+                            <SelectItem value="Южный район">Южный район</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="store-address">Адрес</Label>
+                        <Input id="store-address" name="address" placeholder="ул. Ленина, 123" required />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="store-district">Район</Label>
-                      <Select defaultValue="central">
-                        <SelectTrigger id="store-district">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="central">Центральный</SelectItem>
-                          <SelectItem value="north">Северный</SelectItem>
-                          <SelectItem value="south">Южный</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="store-address">Адрес</Label>
-                      <Input id="store-address" placeholder="ул. Ленина, 123" />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsStoreDialogOpen(false)}>Отмена</Button>
-                    <Button onClick={handleAddStore}>Добавить</Button>
-                  </DialogFooter>
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => setIsStoreDialogOpen(false)}>Отмена</Button>
+                      <Button type="submit" disabled={isLoading}>
+                        {isLoading ? 'Добавление...' : 'Добавить'}
+                      </Button>
+                    </DialogFooter>
+                  </form>
                 </DialogContent>
               </Dialog>
             </div>

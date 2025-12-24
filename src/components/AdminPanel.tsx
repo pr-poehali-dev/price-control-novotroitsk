@@ -10,6 +10,7 @@ import BulkDataEditor from './BulkDataEditor';
 import UsersManagement from './admin/UsersManagement';
 import DirectoriesManagement from './admin/DirectoriesManagement';
 import ReportsAndSettings from './admin/ReportsAndSettings';
+import AdvancedReports from './admin/AdvancedReports';
 
 interface AdminPanelProps {
   isSuperAdmin?: boolean;
@@ -33,7 +34,7 @@ const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className={`grid w-full ${isSuperAdmin ? 'grid-cols-8' : 'grid-cols-7'}`}>
+        <TabsList className={`grid w-full ${isSuperAdmin ? 'grid-cols-9' : 'grid-cols-8'}`}>
           <TabsTrigger value="users" className="gap-2">
             <Icon name="Users" size={16} />
             Пользователи
@@ -53,6 +54,10 @@ const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
           <TabsTrigger value="reports" className="gap-2">
             <Icon name="FileBarChart" size={16} />
             Отчёты
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="gap-2">
+            <Icon name="LineChart" size={16} />
+            Аналитика
           </TabsTrigger>
           <TabsTrigger value="notifications" className="gap-2">
             <Icon name="Send" size={16} />
@@ -88,6 +93,10 @@ const AdminPanel = ({ isSuperAdmin = false }: AdminPanelProps) => {
 
         <TabsContent value="reports" className="animate-fade-in space-y-4">
           <ReportsAndSettings onExport={handleExport} />
+        </TabsContent>
+
+        <TabsContent value="analytics" className="animate-fade-in space-y-4">
+          <AdvancedReports />
         </TabsContent>
 
         <TabsContent value="notifications" className="animate-fade-in space-y-4">
