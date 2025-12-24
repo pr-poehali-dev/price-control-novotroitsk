@@ -14,10 +14,25 @@ const AdvancedReports = () => {
   const [selectedReport, setSelectedReport] = useState<'period' | 'dynamics' | 'comparison' | 'anomalies'>('period');
   const [selectedPeriod, setSelectedPeriod] = useState('week');
   const [selectedProduct, setSelectedProduct] = useState('all');
+  const [startDate, setStartDate] = useState('2024-01-01');
+  const [endDate, setEndDate] = useState('2024-01-31');
 
   const products = dataStore.getProducts();
   const stores = dataStore.getStores();
   const records = dataStore.getPriceRecords();
+
+  // Получить название периода
+  const getPeriodLabel = () => {
+    const periods: Record<string, string> = {
+      'today': 'За сегодня',
+      'week': 'За неделю',
+      'month': 'За месяц',
+      'quarter': 'За квартал',
+      'year': 'За год',
+      'custom': `с ${startDate} по ${endDate}`
+    };
+    return periods[selectedPeriod] || 'За выбранный период';
+  };
 
   // Рассчёт статистики за период
   const calculatePeriodStats = () => {
@@ -84,7 +99,7 @@ const AdvancedReports = () => {
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h3 className="text-2xl font-bold">Расширенная аналитика</h3>
-          <p className="text-sm text-muted-foreground">Подробные отчёты и анализ данных</p>
+          <p className="text-sm text-muted-foreground">Подробные отчёты и анализ данных · {getPeriodLabel()}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="gap-2" onClick={() => handleExport('Excel')}>
@@ -97,6 +112,59 @@ const AdvancedReports = () => {
           </Button>
         </div>
       </div>
+
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-wrap gap-4 items-end">
+            <div className="flex-1 min-w-[200px] space-y-2">
+              <Label htmlFor="period-select">Период анализа</Label>
+              <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                <SelectTrigger id="period-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Сегодня</SelectItem>
+                  <SelectItem value="week">Неделя</SelectItem>
+                  <SelectItem value="month">Месяц</SelectItem>
+                  <SelectItem value="quarter">Квартал</SelectItem>
+                  <SelectItem value="year">Год</SelectItem>
+                  <SelectItem value="custom">Произвольный период</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedPeriod === 'custom' && (
+              <>
+                <div className="flex-1 min-w-[150px] space-y-2">
+                  <Label htmlFor="start-date">Начало</Label>
+                  <input
+                    id="start-date"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
+                <div className="flex-1 min-w-[150px] space-y-2">
+                  <Label htmlFor="end-date">Конец</Label>
+                  <input
+                    id="end-date"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
+              </>
+            )}
+
+            <Button className="gap-2">
+              <Icon name="RefreshCw" size={16} />
+              Применить
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="flex gap-2">
         <Button
@@ -137,23 +205,8 @@ const AdvancedReports = () => {
         <>
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Отчёт за период</CardTitle>
-                <div className="flex gap-2 items-center">
-                  <Label>Период:</Label>
-                  <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                    <SelectTrigger className="w-[150px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="week">Неделя</SelectItem>
-                      <SelectItem value="month">Месяц</SelectItem>
-                      <SelectItem value="quarter">Квартал</SelectItem>
-                      <SelectItem value="year">Год</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              <CardTitle>Отчёт за период</CardTitle>
+              <CardDescription>Общая статистика по ценам {getPeriodLabel().toLowerCase()}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -200,7 +253,7 @@ const AdvancedReports = () => {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Динамика цен</CardTitle>
-                <CardDescription>Изменение цен во времени</CardDescription>
+                <CardDescription>Изменение цен {getPeriodLabel().toLowerCase()}</CardDescription>
               </div>
               <div className="flex gap-2 items-center">
                 <Label>Товар:</Label>
@@ -256,7 +309,7 @@ const AdvancedReports = () => {
         <Card>
           <CardHeader>
             <CardTitle>Сравнение цен по магазинам</CardTitle>
-            <CardDescription>Средние цены в разных торговых сетях</CardDescription>
+            <CardDescription>Средние цены в разных торговых сетях {getPeriodLabel().toLowerCase()}</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -298,7 +351,7 @@ const AdvancedReports = () => {
               <Icon name="AlertTriangle" size={20} className="text-orange-500" />
               Обнаруженные аномалии цен
             </CardTitle>
-            <CardDescription>Цены, выходящие за пределы ожидаемого диапазона</CardDescription>
+            <CardDescription>Цены, выходящие за пределы ожидаемого диапазона {getPeriodLabel().toLowerCase()}</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
