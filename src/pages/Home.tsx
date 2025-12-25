@@ -33,8 +33,15 @@ const Home = () => {
     };
 
     updateData();
+    
     window.addEventListener('storage', updateData);
-    return () => window.removeEventListener('storage', updateData);
+    
+    const interval = setInterval(updateData, 2000);
+    
+    return () => {
+      window.removeEventListener('storage', updateData);
+      clearInterval(interval);
+    };
   }, []);
 
   const enrichedPriceData = useMemo(() => {
@@ -97,6 +104,31 @@ const Home = () => {
     const total = priceRecords.reduce((sum, record) => sum + record.price, 0);
     return Math.round(total / priceRecords.length);
   }, [priceRecords]);
+
+  const productAverages = useMemo(() => {
+    const productGroups = enrichedPriceData.reduce((acc, record) => {
+      if (!acc[record.productName]) {
+        acc[record.productName] = [];
+      }
+      acc[record.productName].push(record.price);
+      return acc;
+    }, {} as Record<string, number[]>);
+
+    return Object.entries(productGroups)
+      .map(([productName, prices]) => {
+        const avgPrice = prices.reduce((sum, p) => sum + p, 0) / prices.length;
+        const minPrice = Math.min(...prices);
+        const maxPrice = Math.max(...prices);
+        return {
+          productName,
+          avgPrice: Math.round(avgPrice),
+          minPrice,
+          maxPrice,
+          recordCount: prices.length,
+        };
+      })
+      .sort((a, b) => a.productName.localeCompare(b.productName));
+  }, [enrichedPriceData]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -172,10 +204,14 @@ const Home = () => {
         </div>
 
         <Tabs defaultValue="prices" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="prices" className="gap-2">
               <Icon name="ListFilter" size={16} />
               Актуальные цены
+            </TabsTrigger>
+            <TabsTrigger value="products" className="gap-2">
+              <Icon name="Package" size={16} />
+              Средние цены
             </TabsTrigger>
             <TabsTrigger value="comparison" className="gap-2">
               <Icon name="BarChart3" size={16} />
@@ -270,6 +306,53 @@ const Home = () => {
                   <p className="text-sm text-muted-foreground text-center mt-4">
                     Показано 50 из {filteredData.length} записей
                   </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="products" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Средние цены по товарам</CardTitle>
+                <CardDescription>Средняя цена каждого продукта по всем магазинам</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {productAverages.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">Нет данных для отображения</p>
+                ) : (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Товар</TableHead>
+                          <TableHead className="text-right">Минимум</TableHead>
+                          <TableHead className="text-right">Средняя</TableHead>
+                          <TableHead className="text-right">Максимум</TableHead>
+                          <TableHead className="text-right">Записей</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {productAverages.map((product, index) => (
+                          <TableRow key={`${product.productName}-${index}`}>
+                            <TableCell className="font-medium">{product.productName}</TableCell>
+                            <TableCell className="text-right text-green-600 font-semibold">
+                              {product.minPrice}₽
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-lg">
+                              {product.avgPrice}₽
+                            </TableCell>
+                            <TableCell className="text-right text-red-600 font-semibold">
+                              {product.maxPrice}₽
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground">
+                              {product.recordCount}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </CardContent>
             </Card>
