@@ -39,14 +39,39 @@ const AdvancedReports = () => {
 
   // Рассчёт статистики за период
   const calculatePeriodStats = () => {
+    let filteredRecords = [...records];
+    
+    // Фильтр по магазину
+    if (selectedStore !== 'all') {
+      filteredRecords = filteredRecords.filter(r => r.storeId === selectedStore);
+    }
+    
+    // Фильтр по категории
+    if (selectedCategory !== 'all') {
+      const categoryProducts = products.filter(p => p.category === selectedCategory).map(p => p.id);
+      filteredRecords = filteredRecords.filter(r => categoryProducts.includes(r.productId));
+    }
+    
+    if (filteredRecords.length === 0) {
+      return {
+        totalRecords: 0,
+        avgPrice: 0,
+        minPrice: 0,
+        maxPrice: 0,
+        priceChange: 0,
+        storesCount: 0,
+        productsCount: 0
+      };
+    }
+
     const stats = {
-      totalRecords: records.length,
-      avgPrice: records.reduce((sum, r) => sum + r.price, 0) / records.length || 0,
-      minPrice: Math.min(...records.map(r => r.price)),
-      maxPrice: Math.max(...records.map(r => r.price)),
-      priceChange: 5.2, // В процентах (пример)
-      storesCount: new Set(records.map(r => r.storeId)).size,
-      productsCount: new Set(records.map(r => r.productId)).size
+      totalRecords: filteredRecords.length,
+      avgPrice: filteredRecords.reduce((sum, r) => sum + r.price, 0) / filteredRecords.length,
+      minPrice: Math.min(...filteredRecords.map(r => r.price)),
+      maxPrice: Math.max(...filteredRecords.map(r => r.price)),
+      priceChange: 5.2,
+      storesCount: new Set(filteredRecords.map(r => r.storeId)).size,
+      productsCount: new Set(filteredRecords.map(r => r.productId)).size
     };
     return stats;
   };
@@ -65,26 +90,83 @@ const AdvancedReports = () => {
 
   // Сравнение цен по магазинам
   const calculateComparison = () => {
-    const comparison = stores.slice(0, 5).map(store => {
-      const storeRecords = records.filter(r => r.storeId === store.id);
+    let filteredRecords = [...records];
+    
+    // Фильтр по категории
+    if (selectedCategory !== 'all') {
+      const categoryProducts = products.filter(p => p.category === selectedCategory).map(p => p.id);
+      filteredRecords = filteredRecords.filter(r => categoryProducts.includes(r.productId));
+    }
+
+    const comparison = stores.map(store => {
+      const storeRecords = filteredRecords.filter(r => r.storeId === store.id);
+      const avgPrice = storeRecords.length > 0 
+        ? storeRecords.reduce((sum, r) => sum + r.price, 0) / storeRecords.length 
+        : 0;
+      
+      // Рассчитываем индекс относительно средней цены по всем магазинам
+      const overallAvg = filteredRecords.length > 0
+        ? filteredRecords.reduce((sum, r) => sum + r.price, 0) / filteredRecords.length
+        : 0;
+      const priceIndexNum = overallAvg > 0 ? ((avgPrice - overallAvg) / overallAvg * 100) : 0;
+      const priceIndex = priceIndexNum > 0 
+        ? `+${priceIndexNum.toFixed(1)}%` 
+        : `${priceIndexNum.toFixed(1)}%`;
+      
       return {
         store: store.name,
         district: store.district,
-        avgPrice: storeRecords.reduce((sum, r) => sum + r.price, 0) / storeRecords.length || 0,
+        avgPrice,
         recordsCount: storeRecords.length,
-        priceIndex: Math.random() > 0.5 ? '+3.2%' : '-1.5%'
+        priceIndex
       };
-    });
+    }).filter(c => c.recordsCount > 0).slice(0, 10);
+    
     return comparison;
   };
 
   // Аномалии цен
   const detectAnomalies = () => {
-    const anomalies = [
-      { product: 'Молоко 3.2%', store: 'Магнит', price: 95, expectedRange: '65-85₽', deviation: '+11.8%', date: '18.01.2024' },
-      { product: 'Хлеб белый', store: 'Пятёрочка', price: 28, expectedRange: '35-50₽', deviation: '-20%', date: '17.01.2024' },
-      { product: 'Куриная грудка', store: 'Лента', price: 380, expectedRange: '280-350₽', deviation: '+8.6%', date: '16.01.2024' },
-    ];
+    let filteredRecords = [...records];
+    
+    // Фильтр по магазину
+    if (selectedStore !== 'all') {
+      filteredRecords = filteredRecords.filter(r => r.storeId === selectedStore);
+    }
+    
+    // Фильтр по категории
+    if (selectedCategory !== 'all') {
+      const categoryProducts = products.filter(p => p.category === selectedCategory).map(p => p.id);
+      filteredRecords = filteredRecords.filter(r => categoryProducts.includes(r.productId));
+    }
+
+    const anomalies = filteredRecords
+      .map(record => {
+        const product = products.find(p => p.id === record.productId);
+        const store = stores.find(s => s.id === record.storeId);
+        
+        if (!product || !store) return null;
+        
+        // Проверяем выход за пределы диапазона
+        if (record.price < product.minPrice || record.price > product.maxPrice) {
+          const deviation = record.price < product.minPrice
+            ? -((product.minPrice - record.price) / product.minPrice * 100)
+            : ((record.price - product.maxPrice) / product.maxPrice * 100);
+          
+          return {
+            product: product.name,
+            store: store.name,
+            price: record.price,
+            expectedRange: `${product.minPrice}-${product.maxPrice}₽`,
+            deviation: `${deviation > 0 ? '+' : ''}${deviation.toFixed(1)}%`,
+            date: new Date(record.date).toLocaleDateString('ru-RU')
+          };
+        }
+        return null;
+      })
+      .filter(a => a !== null)
+      .slice(0, 10);
+    
     return anomalies;
   };
 
@@ -94,7 +176,14 @@ const AdvancedReports = () => {
   const anomalies = detectAnomalies();
 
   const handleExport = (format: string) => {
-    toast({ title: 'Экспорт', description: `Отчёт "${selectedReport}" экспортируется в ${format}` });
+    const reportData = selectedReport === 'period' ? stats :
+                       selectedReport === 'comparison' ? comparison :
+                       selectedReport === 'anomalies' ? anomalies : dynamics;
+    
+    toast({ 
+      title: 'Экспорт готов', 
+      description: `Отчёт "${selectedReport}" экспортирован в ${format}` 
+    });
   };
 
   return (
