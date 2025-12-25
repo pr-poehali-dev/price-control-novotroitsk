@@ -93,9 +93,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         elif method == 'PUT':
             # Обновить магазин
-            params = event.get('queryStringParameters', {})
-            store_id = params.get('id')
             body = json.loads(event.get('body', '{}'))
+            store_id = body.get('id')
             
             name = body.get('name')
             district = body.get('district')
@@ -134,6 +133,33 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'Access-Control-Allow-Origin': '*'
                 },
                 'body': json.dumps(store),
+                'isBase64Encoded': False
+            }
+        
+        elif method == 'DELETE':
+            # Удалить магазин
+            body = json.loads(event.get('body', '{}'))
+            store_id = body.get('id')
+            
+            cur.execute("DELETE FROM stores WHERE id = %s RETURNING id", (store_id,))
+            row = cur.fetchone()
+            conn.commit()
+            
+            if not row:
+                return {
+                    'statusCode': 404,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps({'error': 'Store not found'}),
+                    'isBase64Encoded': False
+                }
+            
+            return {
+                'statusCode': 200,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                },
+                'body': json.dumps({'message': 'Store deleted successfully'}),
                 'isBase64Encoded': False
             }
         
