@@ -92,6 +92,12 @@ const Home = () => {
     return 'bg-red-100 text-red-800';
   };
 
+  const averagePrice = useMemo(() => {
+    if (priceRecords.length === 0) return 0;
+    const total = priceRecords.reduce((sum, record) => sum + record.price, 0);
+    return Math.round(total / priceRecords.length);
+  }, [priceRecords]);
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-white sticky top-0 z-10">
@@ -154,12 +160,12 @@ const Home = () => {
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Обновлено</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Средняя цена</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <span className="text-xl font-bold">Сегодня</span>
-                <Icon name="Calendar" size={24} style={{ color: systemConfig.primaryColor }} />
+                <span className="text-3xl font-bold">{averagePrice}₽</span>
+                <Icon name="TrendingUp" size={24} style={{ color: systemConfig.primaryColor }} />
               </div>
             </CardContent>
           </Card>
