@@ -14,6 +14,7 @@ const AdvancedReports = () => {
   const [selectedReport, setSelectedReport] = useState<'period' | 'dynamics' | 'comparison' | 'anomalies'>('period');
   const [selectedPeriod, setSelectedPeriod] = useState('week');
   const [selectedProduct, setSelectedProduct] = useState('all');
+  const [selectedStore, setSelectedStore] = useState('all');
   const [startDate, setStartDate] = useState('2024-01-01');
   const [endDate, setEndDate] = useState('2024-01-31');
 
@@ -129,6 +130,21 @@ const AdvancedReports = () => {
                   <SelectItem value="quarter">Квартал</SelectItem>
                   <SelectItem value="year">Год</SelectItem>
                   <SelectItem value="custom">Произвольный период</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex-1 min-w-[200px] space-y-2">
+              <Label htmlFor="store-select">Магазин</Label>
+              <Select value={selectedStore} onValueChange={setSelectedStore}>
+                <SelectTrigger id="store-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все магазины</SelectItem>
+                  {stores.map(s => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
