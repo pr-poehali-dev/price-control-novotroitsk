@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import { dataStore } from '@/lib/store';
@@ -464,35 +465,94 @@ const AdvancedReports = () => {
           </CardHeader>
           <CardContent>
             {dynamics.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Дата</TableHead>
-                    <TableHead>Средняя цена</TableHead>
-                    <TableHead>Минимум</TableHead>
-                    <TableHead>Максимум</TableHead>
-                    <TableHead>Изменение</TableHead>
-                  </TableRow>
-              </TableHeader>
-              <TableBody>
-                {dynamics.map((d, i) => (
-                  <TableRow key={d.date}>
-                    <TableCell className="font-medium">{d.date}</TableCell>
-                    <TableCell>{d.avgPrice.toFixed(2)}₽</TableCell>
-                    <TableCell>{d.minPrice.toFixed(2)}₽</TableCell>
-                    <TableCell>{d.maxPrice.toFixed(2)}₽</TableCell>
-                    <TableCell>
-                      {i > 0 && (
-                        <Badge variant={d.avgPrice > dynamics[i - 1].avgPrice ? 'destructive' : 'default'}>
-                          {d.avgPrice > dynamics[i - 1].avgPrice ? '↑' : '↓'} 
-                          {Math.abs(d.avgPrice - dynamics[i - 1].avgPrice)}₽
-                        </Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+              <>
+                <div className="mb-8">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={dynamics}>
+                      <defs>
+                        <linearGradient id="colorAvg" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis 
+                        dataKey="date" 
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                      />
+                      <YAxis 
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                        tickFormatter={(value) => `${value}₽`}
+                      />
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                        formatter={(value: number) => [`${value.toFixed(2)}₽`, '']}
+                      />
+                      <Legend />
+                      <Area 
+                        type="monotone" 
+                        dataKey="maxPrice" 
+                        stroke="hsl(var(--destructive))" 
+                        fill="transparent"
+                        strokeWidth={2}
+                        name="Максимум"
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="avgPrice" 
+                        stroke="hsl(var(--primary))" 
+                        fill="url(#colorAvg)"
+                        strokeWidth={3}
+                        name="Средняя цена"
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="minPrice" 
+                        stroke="hsl(var(--chart-2))" 
+                        fill="transparent"
+                        strokeWidth={2}
+                        name="Минимум"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Дата</TableHead>
+                      <TableHead>Средняя цена</TableHead>
+                      <TableHead>Минимум</TableHead>
+                      <TableHead>Максимум</TableHead>
+                      <TableHead>Изменение</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dynamics.map((d, i) => (
+                    <TableRow key={d.date}>
+                      <TableCell className="font-medium">{d.date}</TableCell>
+                      <TableCell>{d.avgPrice.toFixed(2)}₽</TableCell>
+                      <TableCell className="text-green-600">{d.minPrice.toFixed(2)}₽</TableCell>
+                      <TableCell className="text-red-600">{d.maxPrice.toFixed(2)}₽</TableCell>
+                      <TableCell>
+                        {i > 0 && (
+                          <Badge variant={d.avgPrice > dynamics[i - 1].avgPrice ? 'destructive' : 'default'}>
+                            {d.avgPrice > dynamics[i - 1].avgPrice ? '↑' : '↓'} 
+                            {Math.abs(d.avgPrice - dynamics[i - 1].avgPrice).toFixed(2)}₽
+                          </Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              </>
             ) : (
               <p className="text-center text-muted-foreground py-8">Нет данных для отображения. Измените фильтры.</p>
             )}
