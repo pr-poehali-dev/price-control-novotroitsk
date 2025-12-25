@@ -15,12 +15,14 @@ const AdvancedReports = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('week');
   const [selectedProduct, setSelectedProduct] = useState('all');
   const [selectedStore, setSelectedStore] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [startDate, setStartDate] = useState('2024-01-01');
   const [endDate, setEndDate] = useState('2024-01-31');
 
   const products = dataStore.getProducts();
   const stores = dataStore.getStores();
   const records = dataStore.getPriceRecords();
+  const categories = Array.from(new Set(products.map(p => p.category)));
 
   // Получить название периода
   const getPeriodLabel = () => {
@@ -144,6 +146,21 @@ const AdvancedReports = () => {
                   <SelectItem value="all">Все магазины</SelectItem>
                   {stores.map(s => (
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex-1 min-w-[200px] space-y-2">
+              <Label htmlFor="category-select">Категория</Label>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger id="category-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все категории</SelectItem>
+                  {categories.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
