@@ -78,13 +78,47 @@ const AdvancedReports = () => {
 
   // Динамика цен по товару
   const calculateDynamics = () => {
-    const dynamics = [
-      { date: '15.01', avgPrice: 72, minPrice: 68, maxPrice: 78 },
-      { date: '16.01', avgPrice: 74, minPrice: 70, maxPrice: 79 },
-      { date: '17.01', avgPrice: 73, minPrice: 69, maxPrice: 77 },
-      { date: '18.01', avgPrice: 75, minPrice: 71, maxPrice: 80 },
-      { date: '19.01', avgPrice: 76, minPrice: 72, maxPrice: 82 },
-    ];
+    let filteredRecords = [...records];
+    
+    // Фильтр по магазину
+    if (selectedStore !== 'all') {
+      filteredRecords = filteredRecords.filter(r => r.storeId === selectedStore);
+    }
+    
+    // Фильтр по категории
+    if (selectedCategory !== 'all') {
+      const categoryProducts = products.filter(p => p.category === selectedCategory).map(p => p.id);
+      filteredRecords = filteredRecords.filter(r => categoryProducts.includes(r.productId));
+    }
+    
+    // Фильтр по товару
+    if (selectedProduct !== 'all') {
+      filteredRecords = filteredRecords.filter(r => r.productId === selectedProduct);
+    }
+    
+    // Группируем по датам
+    const byDate: Record<string, number[]> = {};
+    filteredRecords.forEach(record => {
+      const dateKey = new Date(record.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+      if (!byDate[dateKey]) byDate[dateKey] = [];
+      byDate[dateKey].push(record.price);
+    });
+    
+    // Рассчитываем статистику по датам
+    const dynamics = Object.entries(byDate)
+      .map(([date, prices]) => ({
+        date,
+        avgPrice: prices.reduce((sum, p) => sum + p, 0) / prices.length,
+        minPrice: Math.min(...prices),
+        maxPrice: Math.max(...prices)
+      }))
+      .sort((a, b) => {
+        const [dayA, monthA] = a.date.split('.').map(Number);
+        const [dayB, monthB] = b.date.split('.').map(Number);
+        return monthA - monthB || dayA - dayB;
+      })
+      .slice(-10);
+    
     return dynamics;
   };
 
@@ -176,13 +210,52 @@ const AdvancedReports = () => {
   const anomalies = detectAnomalies();
 
   const handleExport = (format: string) => {
-    const reportData = selectedReport === 'period' ? stats :
-                       selectedReport === 'comparison' ? comparison :
-                       selectedReport === 'anomalies' ? anomalies : dynamics;
+    let csvContent = '';
+    let reportName = '';
+    
+    if (selectedReport === 'period') {
+      reportName = `Статистика_${getPeriodLabel()}`;
+      csvContent = `Статистика за период\n\n`;
+      csvContent += `Всего записей,${stats.totalRecords}\n`;
+      csvContent += `Средняя цена,${stats.avgPrice.toFixed(2)} ₽\n`;
+      csvContent += `Минимальная цена,${stats.minPrice.toFixed(2)} ₽\n`;
+      csvContent += `Максимальная цена,${stats.maxPrice.toFixed(2)} ₽\n`;
+      csvContent += `Магазинов,${stats.storesCount}\n`;
+      csvContent += `Товаров,${stats.productsCount}\n`;
+    } else if (selectedReport === 'comparison') {
+      reportName = `Сравнение_магазинов_${getPeriodLabel()}`;
+      csvContent = `Магазин,Район,Средняя цена,Записей,Индекс цен\n`;
+      comparison.forEach(c => {
+        csvContent += `${c.store},${c.district},${c.avgPrice.toFixed(2)} ₽,${c.recordsCount},${c.priceIndex}\n`;
+      });
+    } else if (selectedReport === 'anomalies') {
+      reportName = `Аномалии_цен_${getPeriodLabel()}`;
+      csvContent = `Товар,Магазин,Цена,Ожидаемый диапазон,Отклонение,Дата\n`;
+      anomalies.forEach(a => {
+        csvContent += `${a.product},${a.store},${a.price} ₽,${a.expectedRange},${a.deviation},${a.date}\n`;
+      });
+    } else if (selectedReport === 'dynamics') {
+      reportName = `Динамика_цен_${getPeriodLabel()}`;
+      csvContent = `Дата,Средняя цена,Мин. цена,Макс. цена\n`;
+      dynamics.forEach(d => {
+        csvContent += `${d.date},${d.avgPrice} ₽,${d.minPrice} ₽,${d.maxPrice} ₽\n`;
+      });
+    }
+    
+    // Создаём файл и скачиваем
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${reportName}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     
     toast({ 
-      title: 'Экспорт готов', 
-      description: `Отчёт "${selectedReport}" экспортирован в ${format}` 
+      title: 'Отчёт скачан', 
+      description: `Файл "${reportName}.csv" сохранён` 
     });
   };
 
@@ -194,13 +267,9 @@ const AdvancedReports = () => {
           <p className="text-sm text-muted-foreground">Подробные отчёты и анализ данных · {getPeriodLabel()}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => handleExport('Excel')}>
-            <Icon name="FileSpreadsheet" size={16} />
-            Excel
-          </Button>
-          <Button variant="outline" className="gap-2" onClick={() => handleExport('PDF')}>
-            <Icon name="FileText" size={16} />
-            PDF
+          <Button variant="outline" className="gap-2" onClick={() => handleExport('CSV')}>
+            <Icon name="Download" size={16} />
+            Скачать отчёт
           </Button>
         </div>
       </div>
@@ -394,23 +463,24 @@ const AdvancedReports = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Дата</TableHead>
-                  <TableHead>Средняя цена</TableHead>
-                  <TableHead>Минимум</TableHead>
-                  <TableHead>Максимум</TableHead>
-                  <TableHead>Изменение</TableHead>
-                </TableRow>
+            {dynamics.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Дата</TableHead>
+                    <TableHead>Средняя цена</TableHead>
+                    <TableHead>Минимум</TableHead>
+                    <TableHead>Максимум</TableHead>
+                    <TableHead>Изменение</TableHead>
+                  </TableRow>
               </TableHeader>
               <TableBody>
                 {dynamics.map((d, i) => (
                   <TableRow key={d.date}>
                     <TableCell className="font-medium">{d.date}</TableCell>
-                    <TableCell>{d.avgPrice}₽</TableCell>
-                    <TableCell>{d.minPrice}₽</TableCell>
-                    <TableCell>{d.maxPrice}₽</TableCell>
+                    <TableCell>{d.avgPrice.toFixed(2)}₽</TableCell>
+                    <TableCell>{d.minPrice.toFixed(2)}₽</TableCell>
+                    <TableCell>{d.maxPrice.toFixed(2)}₽</TableCell>
                     <TableCell>
                       {i > 0 && (
                         <Badge variant={d.avgPrice > dynamics[i - 1].avgPrice ? 'destructive' : 'default'}>
@@ -423,6 +493,9 @@ const AdvancedReports = () => {
                 ))}
               </TableBody>
             </Table>
+            ) : (
+              <p className="text-center text-muted-foreground py-8">Нет данных для отображения. Измените фильтры.</p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -434,34 +507,38 @@ const AdvancedReports = () => {
             <CardDescription>Средние цены в разных торговых сетях {getPeriodLabel().toLowerCase()}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Магазин</TableHead>
-                  <TableHead>Район</TableHead>
-                  <TableHead>Средняя цена</TableHead>
-                  <TableHead>Записей</TableHead>
-                  <TableHead>Индекс изменения</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {comparison.map((c) => (
-                  <TableRow key={c.store}>
-                    <TableCell className="font-medium">{c.store}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{c.district}</Badge>
-                    </TableCell>
-                    <TableCell>{c.avgPrice.toFixed(2)}₽</TableCell>
-                    <TableCell>{c.recordsCount}</TableCell>
-                    <TableCell>
-                      <Badge variant={c.priceIndex.startsWith('+') ? 'destructive' : 'default'}>
-                        {c.priceIndex}
-                      </Badge>
-                    </TableCell>
+            {comparison.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Магазин</TableHead>
+                    <TableHead>Район</TableHead>
+                    <TableHead>Средняя цена</TableHead>
+                    <TableHead>Записей</TableHead>
+                    <TableHead>Индекс изменения</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {comparison.map((c) => (
+                    <TableRow key={c.store}>
+                      <TableCell className="font-medium">{c.store}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{c.district}</Badge>
+                      </TableCell>
+                      <TableCell>{c.avgPrice.toFixed(2)}₽</TableCell>
+                      <TableCell>{c.recordsCount}</TableCell>
+                      <TableCell>
+                        <Badge variant={c.priceIndex.startsWith('+') ? 'destructive' : 'default'}>
+                          {c.priceIndex}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <p className="text-center text-muted-foreground py-8">Нет данных для сравнения. Измените фильтры.</p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -476,32 +553,40 @@ const AdvancedReports = () => {
             <CardDescription>Цены, выходящие за пределы ожидаемого диапазона {getPeriodLabel().toLowerCase()}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Товар</TableHead>
-                  <TableHead>Магазин</TableHead>
-                  <TableHead>Цена</TableHead>
-                  <TableHead>Ожидаемый диапазон</TableHead>
-                  <TableHead>Отклонение</TableHead>
-                  <TableHead>Дата</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {anomalies.map((a, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-medium">{a.product}</TableCell>
-                    <TableCell>{a.store}</TableCell>
-                    <TableCell className="font-bold text-orange-600">{a.price}₽</TableCell>
-                    <TableCell className="text-muted-foreground">{a.expectedRange}</TableCell>
-                    <TableCell>
-                      <Badge variant="destructive">{a.deviation}</Badge>
-                    </TableCell>
-                    <TableCell className="text-sm">{a.date}</TableCell>
+            {anomalies.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Товар</TableHead>
+                    <TableHead>Магазин</TableHead>
+                    <TableHead>Цена</TableHead>
+                    <TableHead>Ожидаемый диапазон</TableHead>
+                    <TableHead>Отклонение</TableHead>
+                    <TableHead>Дата</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {anomalies.map((a, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">{a.product}</TableCell>
+                      <TableCell>{a.store}</TableCell>
+                      <TableCell className="font-bold text-orange-600">{a.price}₽</TableCell>
+                      <TableCell className="text-muted-foreground">{a.expectedRange}</TableCell>
+                      <TableCell>
+                        <Badge variant="destructive">{a.deviation}</Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">{a.date}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-8">
+                <Icon name="CheckCircle2" size={48} className="mx-auto text-green-500 mb-2" />
+                <p className="text-lg font-semibold">Аномалии не обнаружены</p>
+                <p className="text-sm text-muted-foreground">Все цены находятся в ожидаемом диапазоне</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
