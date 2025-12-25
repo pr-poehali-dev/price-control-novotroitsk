@@ -1,11 +1,22 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Icon from '@/components/ui/icon';
 import { dataStore } from '@/lib/store';
 
 export const QuickStats = () => {
-  const records = dataStore.getPriceRecords();
-  const stores = dataStore.getStores();
-  const products = dataStore.getProducts();
+  const [records, setRecords] = useState(dataStore.getPriceRecords());
+  const [stores, setStores] = useState(dataStore.getStores());
+
+  useEffect(() => {
+    const updateData = () => {
+      setRecords(dataStore.getPriceRecords());
+      setStores(dataStore.getStores());
+    };
+
+    updateData();
+    window.addEventListener('storage', updateData);
+    return () => window.removeEventListener('storage', updateData);
+  }, []);
   
   const today = new Date().toISOString().split('T')[0];
   const todayRecords = records.filter(r => r.date === today);

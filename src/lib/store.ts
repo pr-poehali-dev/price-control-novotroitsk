@@ -38,6 +38,7 @@ export interface PriceRecord {
   price: number;
   comment?: string;
   photoUrl?: string;
+  hasPhoto?: boolean;
   operatorId: string;
   createdAt: string;
 }
@@ -181,6 +182,7 @@ class DataStore {
   private saveData() {
     try {
       localStorage.setItem(this.storageKey, JSON.stringify(this.data));
+      window.dispatchEvent(new Event('storage'));
     } catch (error) {
       console.error('Error saving data:', error);
     }
@@ -193,7 +195,7 @@ class DataStore {
   addUser(user: Omit<User, 'id' | 'createdAt'>): User {
     const newUser: User = {
       ...user,
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       createdAt: new Date().toISOString(),
     };
     this.data.users.push(newUser);
@@ -237,7 +239,7 @@ class DataStore {
   addDistrict(district: Omit<District, 'id'>): District {
     const newDistrict: District = {
       ...district,
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
     this.data.districts.push(newDistrict);
     this.saveData();
@@ -275,7 +277,7 @@ class DataStore {
   addStore(store: Omit<Store, 'id'>): Store {
     const newStore: Store = {
       ...store,
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
     this.data.stores.push(newStore);
     this.saveData();
@@ -309,7 +311,7 @@ class DataStore {
   addProduct(product: Omit<Product, 'id'>): Product {
     const newProduct: Product = {
       ...product,
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
     this.data.products.push(newProduct);
     this.saveData();
@@ -343,7 +345,7 @@ class DataStore {
   addPriceRecord(record: Omit<PriceRecord, 'id' | 'createdAt'>): PriceRecord {
     const newRecord: PriceRecord = {
       ...record,
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       createdAt: new Date().toISOString(),
     };
     this.data.priceRecords.push(newRecord);

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -5,9 +6,21 @@ import Icon from '@/components/ui/icon';
 import { dataStore } from '@/lib/store';
 
 export const RecentRecordsTable = () => {
-  const records = dataStore.getPriceRecords();
-  const stores = dataStore.getStores();
-  const products = dataStore.getProducts();
+  const [records, setRecords] = useState(dataStore.getPriceRecords());
+  const [stores, setStores] = useState(dataStore.getStores());
+  const [products, setProducts] = useState(dataStore.getProducts());
+
+  useEffect(() => {
+    const updateData = () => {
+      setRecords(dataStore.getPriceRecords());
+      setStores(dataStore.getStores());
+      setProducts(dataStore.getProducts());
+    };
+
+    updateData();
+    window.addEventListener('storage', updateData);
+    return () => window.removeEventListener('storage', updateData);
+  }, []);
   
   const recentRecords = records
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())

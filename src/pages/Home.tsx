@@ -244,8 +244,8 @@ const Home = () => {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        filteredData.slice(0, 50).map((item) => (
-                          <TableRow key={item.id}>
+                        filteredData.slice(0, 50).map((item, index) => (
+                          <TableRow key={`${item.id}-${index}`}>
                             <TableCell className="font-medium">{item.productName}</TableCell>
                             <TableCell>{item.storeName}</TableCell>
                             <TableCell>{item.district}</TableCell>
