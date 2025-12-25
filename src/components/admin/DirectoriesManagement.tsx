@@ -20,13 +20,16 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
   const { toast } = useToast();
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [isStoreDialogOpen, setIsStoreDialogOpen] = useState(false);
+  const [isEditProductDialogOpen, setIsEditProductDialogOpen] = useState(false);
+  const [isEditStoreDialogOpen, setIsEditStoreDialogOpen] = useState(false);
   const [selectedDirectory, setSelectedDirectory] = useState<'products' | 'stores'>('products');
+  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [editingStore, setEditingStore] = useState<any>(null);
 
   const [products, setProducts] = useState<any[]>([]);
   const [stores, setStores] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Загрузка товаров из БД
   const loadProducts = async () => {
     try {
       const response = await fetch('https://functions.poehali.dev/4b95609f-33c9-4593-afab-bcbaeaa8624c');
@@ -37,7 +40,6 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
     }
   };
 
-  // Загрузка магазинов из БД
   const loadStores = async () => {
     try {
       const response = await fetch('https://functions.poehali.dev/ec0b8f6d-4d40-49e9-862a-157e23c0f6f2');
@@ -87,6 +89,72 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
     }
   };
 
+  const handleEditProduct = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!isSuperAdmin) {
+      toast({ title: 'Доступ запрещён', description: 'Только главный админ может редактировать', variant: 'destructive' });
+      return;
+    }
+    
+    setIsLoading(true);
+    const formData = new FormData(e.currentTarget);
+    const updatedProduct = {
+      id: editingProduct.id,
+      name: formData.get('name') as string,
+      category: formData.get('category') as string,
+      minPrice: parseFloat(formData.get('minPrice') as string),
+      maxPrice: parseFloat(formData.get('maxPrice') as string),
+      photoRequired: formData.get('photoRequired') === 'on'
+    };
+    
+    try {
+      const response = await fetch(`https://functions.poehali.dev/4b95609f-33c9-4593-afab-bcbaeaa8624c`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedProduct)
+      });
+      
+      if (response.ok) {
+        toast({ title: 'Успешно', description: 'Товар обновлён' });
+        setIsEditProductDialogOpen(false);
+        setEditingProduct(null);
+        await loadProducts();
+      } else {
+        throw new Error('Ошибка при обновлении');
+      }
+    } catch (error) {
+      toast({ title: 'Ошибка', description: 'Не удалось обновить товар', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (!isSuperAdmin) {
+      toast({ title: 'Доступ запрещён', description: 'Только главный админ может удалять', variant: 'destructive' });
+      return;
+    }
+    
+    if (!confirm('Вы уверены, что хотите удалить этот товар?')) return;
+    
+    try {
+      const response = await fetch(`https://functions.poehali.dev/4b95609f-33c9-4593-afab-bcbaeaa8624c`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: productId })
+      });
+      
+      if (response.ok) {
+        toast({ title: 'Успешно', description: 'Товар удалён' });
+        await loadProducts();
+      } else {
+        throw new Error('Ошибка при удалении');
+      }
+    } catch (error) {
+      toast({ title: 'Ошибка', description: 'Не удалось удалить товар', variant: 'destructive' });
+    }
+  };
+
   const handleAddStore = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
@@ -119,8 +187,91 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
     }
   };
 
+  const handleEditStore = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!isSuperAdmin) {
+      toast({ title: 'Доступ запрещён', description: 'Только главный админ может редактировать', variant: 'destructive' });
+      return;
+    }
+    
+    setIsLoading(true);
+    const formData = new FormData(e.currentTarget);
+    const updatedStore = {
+      id: editingStore.id,
+      name: formData.get('name') as string,
+      district: formData.get('district') as string,
+      address: formData.get('address') as string
+    };
+    
+    try {
+      const response = await fetch(`https://functions.poehali.dev/ec0b8f6d-4d40-49e9-862a-157e23c0f6f2`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedStore)
+      });
+      
+      if (response.ok) {
+        toast({ title: 'Успешно', description: 'Магазин обновлён' });
+        setIsEditStoreDialogOpen(false);
+        setEditingStore(null);
+        await loadStores();
+      } else {
+        throw new Error('Ошибка при обновлении');
+      }
+    } catch (error) {
+      toast({ title: 'Ошибка', description: 'Не удалось обновить магазин', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteStore = async (storeId: string) => {
+    if (!isSuperAdmin) {
+      toast({ title: 'Доступ запрещён', description: 'Только главный админ может удалять', variant: 'destructive' });
+      return;
+    }
+    
+    if (!confirm('Вы уверены, что хотите удалить этот магазин?')) return;
+    
+    try {
+      const response = await fetch(`https://functions.poehali.dev/ec0b8f6d-4d40-49e9-862a-157e23c0f6f2`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: storeId })
+      });
+      
+      if (response.ok) {
+        toast({ title: 'Успешно', description: 'Магазин удалён' });
+        await loadStores();
+      } else {
+        throw new Error('Ошибка при удалении');
+      }
+    } catch (error) {
+      toast({ title: 'Ошибка', description: 'Не удалось удалить магазин', variant: 'destructive' });
+    }
+  };
+
+  const openEditProduct = (product: any) => {
+    setEditingProduct(product);
+    setIsEditProductDialogOpen(true);
+  };
+
+  const openEditStore = (store: any) => {
+    setEditingStore(store);
+    setIsEditStoreDialogOpen(true);
+  };
+
   return (
     <div className="space-y-4">
+      {isSuperAdmin && (
+        <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-center gap-3">
+          <Icon name="Crown" size={20} className="text-primary" />
+          <p className="text-sm font-medium">
+            Режим главного администратора: доступны редактирование и удаление записей
+          </p>
+        </div>
+      )}
+
       <div className="flex gap-2">
         <Button
           variant={selectedDirectory === 'products' ? 'default' : 'outline'}
@@ -166,20 +317,6 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
                         <Label htmlFor="product-name">Название товара</Label>
                         <Input id="product-name" name="name" placeholder="Молоко 3.2%" required />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="min-price">Мин. цена (₽)</Label>
-                          <Input id="min-price" name="minPrice" type="number" step="0.01" placeholder="50" required />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="max-price">Макс. цена (₽)</Label>
-                          <Input id="max-price" name="maxPrice" type="number" step="0.01" placeholder="100" required />
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="photo-required">Требуется фото</Label>
-                        <Switch id="photo-required" name="photoRequired" />
-                      </div>
                       <div className="space-y-2">
                         <Label htmlFor="category">Категория</Label>
                         <Select name="category" defaultValue="Молочные продукты">
@@ -194,6 +331,20 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
                             <SelectItem value="Бакалея">Бакалея</SelectItem>
                           </SelectContent>
                         </Select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="min-price">Мин. цена (₽)</Label>
+                          <Input id="min-price" name="minPrice" type="number" step="0.01" placeholder="50" required />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="max-price">Макс. цена (₽)</Label>
+                          <Input id="max-price" name="maxPrice" type="number" step="0.01" placeholder="100" required />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="photo-required">Требуется фото</Label>
+                        <Switch id="photo-required" name="photoRequired" />
                       </div>
                     </div>
                     <DialogFooter>
@@ -212,16 +363,20 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
               <TableHeader>
                 <TableRow>
                   <TableHead>Название</TableHead>
+                  <TableHead>Категория</TableHead>
                   <TableHead>Мин. цена</TableHead>
                   <TableHead>Макс. цена</TableHead>
                   <TableHead>Фото</TableHead>
-                  <TableHead>Действия</TableHead>
+                  {isSuperAdmin && <TableHead>Действия</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {products.map((product) => (
                   <TableRow key={product.id}>
                     <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{product.category}</Badge>
+                    </TableCell>
                     <TableCell>{product.minPrice}₽</TableCell>
                     <TableCell>{product.maxPrice}₽</TableCell>
                     <TableCell>
@@ -234,16 +389,18 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
                         <Badge variant="secondary">Нет</Badge>
                       )}
                     </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm">
-                          <Icon name="Edit" size={16} />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Icon name="Trash2" size={16} />
-                        </Button>
-                      </div>
-                    </TableCell>
+                    {isSuperAdmin && (
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => openEditProduct(product)}>
+                            <Icon name="Edit" size={16} />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDeleteProduct(product.id)}>
+                            <Icon name="Trash2" size={16} className="text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -256,7 +413,7 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Справочник магазинов</CardTitle>
-                <CardDescription>Управление торговыми точками</CardDescription>
+                <CardDescription>Управление магазинами и населёнными пунктами</CardDescription>
               </div>
               <Dialog open={isStoreDialogOpen} onOpenChange={setIsStoreDialogOpen}>
                 <DialogTrigger asChild>
@@ -277,22 +434,12 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
                         <Input id="store-name" name="name" placeholder="Пятёрочка" required />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="store-district">Район</Label>
-                        <Select name="district" defaultValue="Новотроицкое (центр)">
-                          <SelectTrigger id="store-district">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Новотроицкое (центр)">Новотроицкое (центр)</SelectItem>
-                            <SelectItem value="Северный район">Северный район</SelectItem>
-                            <SelectItem value="Западный район">Западный район</SelectItem>
-                            <SelectItem value="Южный район">Южный район</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Label htmlFor="district">Населённый пункт</Label>
+                        <Input id="district" name="district" placeholder="Новотроицкое" required />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="store-address">Адрес</Label>
-                        <Input id="store-address" name="address" placeholder="ул. Ленина, 123" required />
+                        <Label htmlFor="address">Адрес</Label>
+                        <Input id="address" name="address" placeholder="ул. Ленина, 10" />
                       </div>
                     </div>
                     <DialogFooter>
@@ -311,31 +458,29 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
               <TableHeader>
                 <TableRow>
                   <TableHead>Название</TableHead>
-                  <TableHead>Район</TableHead>
+                  <TableHead>Населённый пункт</TableHead>
                   <TableHead>Адрес</TableHead>
-                  <TableHead>Действия</TableHead>
+                  {isSuperAdmin && <TableHead>Действия</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {stores.map((store) => (
                   <TableRow key={store.id}>
                     <TableCell className="font-medium">{store.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{store.district}</Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {store.address}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm">
-                          <Icon name="Edit" size={16} />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Icon name="Trash2" size={16} />
-                        </Button>
-                      </div>
-                    </TableCell>
+                    <TableCell>{store.district}</TableCell>
+                    <TableCell className="text-muted-foreground">{store.address || '—'}</TableCell>
+                    {isSuperAdmin && (
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => openEditStore(store)}>
+                            <Icon name="Edit" size={16} />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDeleteStore(store.id)}>
+                            <Icon name="Trash2" size={16} className="text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -343,6 +488,132 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
           </CardContent>
         </Card>
       )}
+
+      {/* Диалог редактирования товара */}
+      <Dialog open={isEditProductDialogOpen} onOpenChange={setIsEditProductDialogOpen}>
+        <DialogContent>
+          <form onSubmit={handleEditProduct}>
+            <DialogHeader>
+              <DialogTitle>Редактировать товар</DialogTitle>
+              <DialogDescription>Измените данные товара</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-product-name">Название товара</Label>
+                <Input 
+                  id="edit-product-name" 
+                  name="name" 
+                  defaultValue={editingProduct?.name} 
+                  required 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-category">Категория</Label>
+                <Select name="category" defaultValue={editingProduct?.category}>
+                  <SelectTrigger id="edit-category">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Молочные продукты">Молочные продукты</SelectItem>
+                    <SelectItem value="Мясо и птица">Мясные продукты</SelectItem>
+                    <SelectItem value="Хлеб и выпечка">Хлебобулочные изделия</SelectItem>
+                    <SelectItem value="Овощи">Овощи и фрукты</SelectItem>
+                    <SelectItem value="Бакалея">Бакалея</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-min-price">Мин. цена (₽)</Label>
+                  <Input 
+                    id="edit-min-price" 
+                    name="minPrice" 
+                    type="number" 
+                    step="0.01" 
+                    defaultValue={editingProduct?.minPrice} 
+                    required 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-max-price">Макс. цена (₽)</Label>
+                  <Input 
+                    id="edit-max-price" 
+                    name="maxPrice" 
+                    type="number" 
+                    step="0.01" 
+                    defaultValue={editingProduct?.maxPrice} 
+                    required 
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="edit-photo-required">Требуется фото</Label>
+                <Switch 
+                  id="edit-photo-required" 
+                  name="photoRequired" 
+                  defaultChecked={editingProduct?.photoRequired} 
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsEditProductDialogOpen(false)}>
+                Отмена
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? 'Сохранение...' : 'Сохранить'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог редактирования магазина */}
+      <Dialog open={isEditStoreDialogOpen} onOpenChange={setIsEditStoreDialogOpen}>
+        <DialogContent>
+          <form onSubmit={handleEditStore}>
+            <DialogHeader>
+              <DialogTitle>Редактировать магазин</DialogTitle>
+              <DialogDescription>Измените данные магазина</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-store-name">Название магазина</Label>
+                <Input 
+                  id="edit-store-name" 
+                  name="name" 
+                  defaultValue={editingStore?.name} 
+                  required 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-district">Населённый пункт</Label>
+                <Input 
+                  id="edit-district" 
+                  name="district" 
+                  defaultValue={editingStore?.district} 
+                  required 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-address">Адрес</Label>
+                <Input 
+                  id="edit-address" 
+                  name="address" 
+                  defaultValue={editingStore?.address} 
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsEditStoreDialogOpen(false)}>
+                Отмена
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? 'Сохранение...' : 'Сохранить'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
