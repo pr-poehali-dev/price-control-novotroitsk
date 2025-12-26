@@ -29,8 +29,8 @@ const Index = () => {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [availableStores, setAvailableStores] = useState<string[]>([]);
   const [districts, setDistricts] = useState(dataStore.getDistricts());
-  const [stores, setStores] = useState(dataStore.getStores());
-  const [products, setProducts] = useState(dataStore.getProducts());
+  const [stores, setStores] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [priceRecords, setPriceRecords] = useState(dataStore.getPriceRecords());
   
   const [isAddStoreDialogOpen, setIsAddStoreDialogOpen] = useState(false);
@@ -41,6 +41,29 @@ const Index = () => {
   const [bulkPriceList, setBulkPriceList] = useState<Array<{productName: string, price: string, comment?: string}>>([]);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadProducts = async () => {
+    try {
+      const response = await fetch('https://functions.poehali.dev/4b95609f-33c9-4593-afab-bcbaeaa8624c');
+      const data = await response.json();
+      setProducts(data);
+    } catch (error) {
+      console.error('Failed to load products:', error);
+    }
+  };
+
+  const loadStores = async () => {
+    try {
+      const response = await fetch('https://functions.poehali.dev/ec0b8f6d-4d40-49e9-862a-157e23c0f6f2');
+      const data = await response.json();
+      setStores(data);
+      if (data.length > 0) {
+        setAvailableStores(Array.from(new Set(data.map((s: any) => s.name))));
+      }
+    } catch (error) {
+      console.error('Failed to load stores:', error);
+    }
+  };
 
   useEffect(() => {
     const role = localStorage.getItem('userRole') as 'operator' | 'admin' | 'superadmin' | null;
@@ -55,18 +78,13 @@ const Index = () => {
     
     const updateData = () => {
       const newDistricts = dataStore.getDistricts();
-      const newStores = dataStore.getStores();
-      const newProducts = dataStore.getProducts();
       const newPriceRecords = dataStore.getPriceRecords();
       
       setDistricts(newDistricts);
-      setStores(newStores);
-      setProducts(newProducts);
       setPriceRecords(newPriceRecords);
       
-      if (newDistricts.length > 0) {
-        setAvailableStores(Array.from(new Set(newStores.map(s => s.name))));
-      }
+      loadProducts();
+      loadStores();
     };
     
     updateData();
@@ -74,20 +92,26 @@ const Index = () => {
     window.addEventListener('storage', updateData);
     window.addEventListener('dataStoreUpdate', updateData);
     
+    const interval = setInterval(() => {
+      loadProducts();
+      loadStores();
+    }, 5000);
+    
     return () => {
       window.removeEventListener('storage', updateData);
       window.removeEventListener('dataStoreUpdate', updateData);
+      clearInterval(interval);
     };
   }, [navigate]);
 
   const handleDistrictChange = (districtName: string) => {
     setSelectedDistrict(districtName);
-    const stores = dataStore.getStoresByDistrict(districtName);
-    setAvailableStores(Array.from(new Set(stores.map(s => s.name))));
+    const districtStores = stores.filter(s => s.district === districtName);
+    setAvailableStores(Array.from(new Set(districtStores.map(s => s.name))));
     setSelectedStore('');
   };
   
-  const handleAddNewStore = () => {
+  const handleAddNewStore = async () => {
     if (!newStoreName || !selectedDistrict) {
       toast({
         title: 'Ошибка',
@@ -97,24 +121,45 @@ const Index = () => {
       return;
     }
     
-    dataStore.addStore({
-      name: newStoreName,
-      district: selectedDistrict,
-      address: newStoreAddress || undefined,
-    });
-    
-    const updatedStores = dataStore.getStoresByDistrict(selectedDistrict);
-    setAvailableStores(Array.from(new Set(updatedStores.map(s => s.name))));
-    setSelectedStore(newStoreName);
-    
-    toast({
-      title: 'Магазин добавлен',
-      description: `${newStoreName} успешно добавлен в ${selectedDistrict}`,
-    });
-    
-    setNewStoreName('');
-    setNewStoreAddress('');
-    setIsAddStoreDialogOpen(false);
+    try {
+      const response = await fetch('https://functions.poehali.dev/ec0b8f6d-4d40-49e9-862a-157e23c0f6f2', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newStoreName,
+          district: selectedDistrict,
+          address: newStoreAddress || undefined,
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        await loadStores();
+        
+        setTimeout(() => {
+          const districtStores = stores.filter(s => s.district === selectedDistrict);
+          setAvailableStores(Array.from(new Set([...districtStores.map(s => s.name), newStoreName])));
+          setSelectedStore(newStoreName);
+        }, 100);
+        
+        toast({
+          title: 'Магазин добавлен',
+          description: `${newStoreName} успешно добавлен в ${selectedDistrict}`,
+        });
+        
+        setNewStoreName('');
+        setNewStoreAddress('');
+        setIsAddStoreDialogOpen(false);
+      } else {
+        throw new Error('Failed to add store');
+      }
+    } catch (error) {
+      toast({
+        title: 'Ошибка',
+        description: 'Не удалось добавить магазин',
+        variant: 'destructive',
+      });
+    }
   };
   
   const handleAddProductToBulkList = () => {
@@ -158,8 +203,6 @@ const Index = () => {
     }
     
     const userId = localStorage.getItem('userId') || '3';
-    const stores = dataStore.getStores();
-    const products = dataStore.getProducts();
     const store = stores.find(s => s.name === selectedStore && s.district === selectedDistrict);
     
     if (!store) {
@@ -305,7 +348,16 @@ const Index = () => {
     const product = products.find(p => p.name === selectedProduct);
     const priceNum = parseFloat(price);
 
-    if (product?.photoRequired && !photoFile) {
+    if (!product) {
+      toast({
+        title: 'Ошибка',
+        description: 'Товар не найден',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (product.photoRequired && !photoFile) {
       toast({
         title: 'Ошибка',
         description: 'Для этого товара обязательна фотофиксация',
@@ -314,11 +366,11 @@ const Index = () => {
       return;
     }
 
-    if (product && (priceNum < product.minPrice || priceNum > product.maxPrice)) {
-      if (!comment) {
+    if (priceNum < product.minPrice || priceNum > product.maxPrice) {
+      if (!comment || comment.trim().length === 0) {
         toast({
           title: '⚠️ Требуется комментарий',
-          description: 'Цена выходит за пределы. Укажите причину такой цены.',
+          description: `Цена выходит за пределы (${product.minPrice}-${product.maxPrice}₽). Укажите причину такой цены.`,
           variant: 'destructive',
         });
         return;

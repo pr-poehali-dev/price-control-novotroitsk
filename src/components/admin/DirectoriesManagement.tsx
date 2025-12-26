@@ -63,6 +63,14 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
     loadProducts();
     loadStores();
     updateCategories();
+    
+    window.addEventListener('storage', updateCategories);
+    window.addEventListener('dataStoreUpdate', updateCategories);
+    
+    return () => {
+      window.removeEventListener('storage', updateCategories);
+      window.removeEventListener('dataStoreUpdate', updateCategories);
+    };
   }, []);
 
   const handleAddProduct = async (e: React.FormEvent<HTMLFormElement>) => {
