@@ -19,18 +19,38 @@ const Home = () => {
   const [pageContent, setPageContent] = useState(dataStore.getPageContent());
   const [systemConfig, setSystemConfig] = useState(dataStore.getSystemConfig());
   const [districts, setDistricts] = useState(dataStore.getDistricts());
-  const [stores, setStores] = useState(dataStore.getStores());
-  const [products, setProducts] = useState(dataStore.getProducts());
+  const [stores, setStores] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [priceRecords, setPriceRecords] = useState(dataStore.getPriceRecords());
+
+  const loadProducts = async () => {
+    try {
+      const response = await fetch('https://functions.poehali.dev/4b95609f-33c9-4593-afab-bcbaeaa8624c');
+      const data = await response.json();
+      setProducts(data);
+    } catch (error) {
+      console.error('Failed to load products:', error);
+    }
+  };
+
+  const loadStores = async () => {
+    try {
+      const response = await fetch('https://functions.poehali.dev/ec0b8f6d-4d40-49e9-862a-157e23c0f6f2');
+      const data = await response.json();
+      setStores(data);
+    } catch (error) {
+      console.error('Failed to load stores:', error);
+    }
+  };
 
   useEffect(() => {
     const updateData = () => {
       setPageContent(dataStore.getPageContent());
       setSystemConfig(dataStore.getSystemConfig());
       setDistricts(dataStore.getDistricts());
-      setStores(dataStore.getStores());
-      setProducts(dataStore.getProducts());
       setPriceRecords(dataStore.getPriceRecords());
+      loadProducts();
+      loadStores();
     };
 
     updateData();
@@ -38,7 +58,10 @@ const Home = () => {
     window.addEventListener('storage', updateData);
     window.addEventListener('dataStoreUpdate', updateData);
     
-    const interval = setInterval(updateData, 2000);
+    const interval = setInterval(() => {
+      loadProducts();
+      loadStores();
+    }, 5000);
     
     return () => {
       window.removeEventListener('storage', updateData);
