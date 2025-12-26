@@ -357,6 +357,8 @@ const Index = () => {
       return;
     }
 
+    const isPriceOutOfRange = priceNum < product.minPrice || priceNum > product.maxPrice;
+
     if (product.photoRequired && !photoFile) {
       toast({
         title: 'Ошибка',
@@ -366,15 +368,13 @@ const Index = () => {
       return;
     }
 
-    if (priceNum < product.minPrice || priceNum > product.maxPrice) {
-      if (!comment || comment.trim().length === 0) {
-        toast({
-          title: '⚠️ Требуется комментарий',
-          description: `Цена выходит за пределы (${product.minPrice}-${product.maxPrice}₽). Укажите причину такой цены.`,
-          variant: 'destructive',
-        });
-        return;
-      }
+    if (isPriceOutOfRange && (!comment || comment.trim().length === 0)) {
+      toast({
+        title: '⚠️ Требуется комментарий',
+        description: `Цена выходит за пределы (${product.minPrice}-${product.maxPrice}₽). Укажите причину такой цены.`,
+        variant: 'destructive',
+      });
+      return;
     }
 
     const userId = localStorage.getItem('userId') || '3';
