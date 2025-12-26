@@ -302,7 +302,7 @@ const Index = () => {
       return;
     }
 
-    const product = mockProducts.find(p => p.name === selectedProduct);
+    const product = products.find(p => p.name === selectedProduct);
     const priceNum = parseFloat(price);
 
     if (product?.photoRequired && !photoFile) {
@@ -324,6 +324,27 @@ const Index = () => {
         return;
       }
     }
+
+    const userId = localStorage.getItem('userId') || '3';
+    const store = stores.find(s => s.name === selectedStore && s.district === selectedDistrict);
+    
+    if (!store || !product) {
+      toast({
+        title: 'Ошибка',
+        description: 'Магазин или товар не найден',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    dataStore.addPriceRecord({
+      date: new Date().toISOString().split('T')[0],
+      storeId: store.id,
+      productId: product.id,
+      price: priceNum,
+      comment: comment || undefined,
+      operatorId: userId,
+    });
 
     toast({
       title: 'Успешно',
@@ -680,11 +701,11 @@ const Index = () => {
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="photo">
                       Фотофиксация
-                      {mockProducts.find(p => p.name === selectedProduct)?.photoRequired && (
+                      {products.find(p => p.name === selectedProduct)?.photoRequired && (
                         <span className="text-destructive ml-1">*</span>
                       )}
                     </Label>
-                    {mockProducts.find(p => p.name === selectedProduct)?.photoRequired && (
+                    {products.find(p => p.name === selectedProduct)?.photoRequired && (
                       <Alert className="mb-2">
                         <Icon name="Camera" size={16} />
                         <AlertDescription>
@@ -796,34 +817,40 @@ const Index = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mockHistory.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell>{record.date}</TableCell>
-                        <TableCell>{record.store}</TableCell>
-                        <TableCell>{record.product}</TableCell>
-                        <TableCell className="font-semibold">{record.price}₽</TableCell>
-                        <TableCell>
-                          {record.status === 'normal' ? (
-                            <Badge variant="outline" className="gap-1">
-                              <Icon name="Check" size={14} />
-                              Норма
-                            </Badge>
-                          ) : (
-                            <Badge variant="destructive" className="gap-1">
-                              <Icon name="AlertTriangle" size={14} />
-                              Превышение
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {record.photo ? (
-                            <Icon name="Image" size={18} className="text-green-600" />
-                          ) : (
-                            <Icon name="ImageOff" size={18} className="text-muted-foreground" />
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {priceRecords.slice(0, 20).map((record) => {
+                      const store = stores.find(s => s.id === record.storeId);
+                      const product = products.find(p => p.id === record.productId);
+                      const isOutOfRange = product && (record.price < product.minPrice || record.price > product.maxPrice);
+                      
+                      return (
+                        <TableRow key={record.id}>
+                          <TableCell>{new Date(record.date).toLocaleDateString('ru-RU')}</TableCell>
+                          <TableCell>{store?.name || 'Неизвестно'}</TableCell>
+                          <TableCell>{product?.name || 'Неизвестно'}</TableCell>
+                          <TableCell className="font-semibold">{record.price}₽</TableCell>
+                          <TableCell>
+                            {isOutOfRange ? (
+                              <Badge variant="destructive" className="gap-1">
+                                <Icon name="AlertTriangle" size={14} />
+                                Превышение
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="gap-1">
+                                <Icon name="Check" size={14} />
+                                Норма
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {record.hasPhoto ? (
+                              <Icon name="Image" size={18} className="text-green-600" />
+                            ) : (
+                              <Icon name="ImageOff" size={18} className="text-muted-foreground" />
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -838,28 +865,55 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {mockHeatmapData.map((item) => (
-                    <Card key={item.store} className={`border-2 ${getHeatColor(item.priceIndex)}`}>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg">{item.store}</CardTitle>
-                          <Badge variant="outline">{item.district}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-end justify-between">
-                          <div>
-                            <p className="text-sm text-muted-foreground">Средняя цена</p>
-                            <p className="text-3xl font-bold">{item.avgPrice}₽</p>
+                  {(() => {
+                    const storeGroups = priceRecords.reduce((acc, record) => {
+                      const store = stores.find(s => s.id === record.storeId);
+                      if (!store) return acc;
+                      const key = `${store.name}-${store.district}`;
+                      if (!acc[key]) {
+                        acc[key] = { storeName: store.name, district: store.district, prices: [] };
+                      }
+                      acc[key].prices.push(record.price);
+                      return acc;
+                    }, {} as Record<string, { storeName: string; district: string; prices: number[] }>);
+
+                    const avgPrices = Object.values(storeGroups).map(group => {
+                      const avg = group.prices.reduce((sum, p) => sum + p, 0) / group.prices.length;
+                      return { store: group.storeName, district: group.district, avgPrice: Math.round(avg) };
+                    });
+
+                    const overallAvg = avgPrices.reduce((sum, s) => sum + s.avgPrice, 0) / avgPrices.length || 1;
+
+                    const heatmapData = avgPrices.map(stat => ({
+                      ...stat,
+                      priceIndex: stat.avgPrice / overallAvg,
+                    }));
+
+                    return heatmapData.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8 col-span-2">Недостаточно данных для тепловой карты</p>
+                    ) : heatmapData.map((item) => (
+                      <Card key={`${item.store}-${item.district}`} className={`border-2 ${getHeatColor(item.priceIndex)}`}>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg">{item.store}</CardTitle>
+                            <Badge variant="outline">{item.district}</Badge>
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm text-muted-foreground">Индекс</p>
-                            <p className="text-2xl font-semibold">{item.priceIndex.toFixed(2)}</p>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-end justify-between">
+                            <div>
+                              <p className="text-sm text-muted-foreground">Средняя цена</p>
+                              <p className="text-3xl font-bold">{item.avgPrice}₽</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-muted-foreground">Индекс</p>
+                              <p className="text-2xl font-semibold">{item.priceIndex.toFixed(2)}</p>
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    ));
+                  })()}
                 </div>
               </CardContent>
             </Card>
