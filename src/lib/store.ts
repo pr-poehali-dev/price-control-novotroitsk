@@ -210,6 +210,7 @@ class DataStore {
   private saveData() {
     try {
       localStorage.setItem(this.storageKey, JSON.stringify(this.data));
+      window.dispatchEvent(new CustomEvent('dataStoreUpdate', { detail: this.data }));
       window.dispatchEvent(new Event('storage'));
     } catch (error) {
       console.error('Error saving data:', error);

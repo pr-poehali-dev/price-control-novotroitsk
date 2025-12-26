@@ -16,33 +16,6 @@ import AdminPanel from '@/components/AdminPanel';
 import { dataStore } from '@/lib/store';
 import * as XLSX from 'xlsx';
 
-const mockDistricts = [
-  { id: 1, name: 'Новотроицкое (центр)', stores: ['Магнит', 'Пятёрочка', 'Перекрёсток'] },
-  { id: 2, name: 'Северный район', stores: ['Лента', 'Дикси'] },
-  { id: 3, name: 'Западный район', stores: ['Магнит', 'Монетка'] },
-  { id: 4, name: 'Южный район', stores: ['Пятёрочка', 'Верный'] },
-];
-
-const mockCategories = ['Молочные продукты', 'Хлеб и выпечка', 'Мясо и птица', 'Овощи и фрукты'];
-const mockProducts = [
-  { id: 1, name: 'Молоко 3.2%', category: 'Молочные продукты', minPrice: 65, maxPrice: 85, photoRequired: false },
-  { id: 2, name: 'Хлеб белый', category: 'Хлеб и выпечка', minPrice: 35, maxPrice: 50, photoRequired: true },
-  { id: 3, name: 'Куриная грудка', category: 'Мясо и птица', minPrice: 280, maxPrice: 350, photoRequired: false },
-];
-
-const mockHistory = [
-  { id: 1, date: '2024-01-15', store: 'Магнит', product: 'Молоко 3.2%', price: 72, status: 'normal', photo: true },
-  { id: 2, date: '2024-01-15', store: 'Пятёрочка', product: 'Хлеб белый', price: 92, status: 'warning', photo: false },
-  { id: 3, date: '2024-01-14', store: 'Лента', product: 'Куриная грудка', price: 310, status: 'normal', photo: true },
-];
-
-const mockHeatmapData = [
-  { store: 'Магнит', district: 'Центральный', avgPrice: 75, priceIndex: 0.95 },
-  { store: 'Пятёрочка', district: 'Северный', avgPrice: 82, priceIndex: 1.05 },
-  { store: 'Лента', district: 'Западный', avgPrice: 78, priceIndex: 0.98 },
-  { store: 'Перекрёсток', district: 'Южный', avgPrice: 88, priceIndex: 1.12 },
-];
-
 const Index = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -55,6 +28,10 @@ const Index = () => {
   const [comment, setComment] = useState('');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [availableStores, setAvailableStores] = useState<string[]>([]);
+  const [districts, setDistricts] = useState(dataStore.getDistricts());
+  const [stores, setStores] = useState(dataStore.getStores());
+  const [products, setProducts] = useState(dataStore.getProducts());
+  const [priceRecords, setPriceRecords] = useState(dataStore.getPriceRecords());
   
   const [isAddStoreDialogOpen, setIsAddStoreDialogOpen] = useState(false);
   const [newStoreName, setNewStoreName] = useState('');
@@ -76,11 +53,31 @@ const Index = () => {
       setUsername(user);
     }
     
-    const districts = dataStore.getDistricts();
-    if (districts.length > 0) {
-      const stores = dataStore.getStores();
-      setAvailableStores(Array.from(new Set(stores.map(s => s.name))));
-    }
+    const updateData = () => {
+      const newDistricts = dataStore.getDistricts();
+      const newStores = dataStore.getStores();
+      const newProducts = dataStore.getProducts();
+      const newPriceRecords = dataStore.getPriceRecords();
+      
+      setDistricts(newDistricts);
+      setStores(newStores);
+      setProducts(newProducts);
+      setPriceRecords(newPriceRecords);
+      
+      if (newDistricts.length > 0) {
+        setAvailableStores(Array.from(new Set(newStores.map(s => s.name))));
+      }
+    };
+    
+    updateData();
+    
+    window.addEventListener('storage', updateData);
+    window.addEventListener('dataStoreUpdate', updateData);
+    
+    return () => {
+      window.removeEventListener('storage', updateData);
+      window.removeEventListener('dataStoreUpdate', updateData);
+    };
   }, [navigate]);
 
   const handleDistrictChange = (districtName: string) => {
@@ -388,11 +385,13 @@ const Index = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
           <Card className="hover-scale">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Записей за месяц</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Записей сегодня</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <span className="text-3xl font-bold">1,234</span>
+                <span className="text-3xl font-bold">
+                  {priceRecords.filter(r => r.date === new Date().toISOString().split('T')[0]).length}
+                </span>
                 <Icon name="FileText" size={24} className="text-primary" />
               </div>
             </CardContent>
@@ -404,7 +403,7 @@ const Index = () => {
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <span className="text-3xl font-bold">45</span>
+                <span className="text-3xl font-bold">{stores.length}</span>
                 <Icon name="Store" size={24} className="text-primary" />
               </div>
             </CardContent>
@@ -416,7 +415,11 @@ const Index = () => {
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <span className="text-3xl font-bold">78₽</span>
+                <span className="text-3xl font-bold">
+                  {priceRecords.length > 0 
+                    ? Math.round(priceRecords.reduce((sum, r) => sum + r.price, 0) / priceRecords.length) 
+                    : 0}₽
+                </span>
                 <Icon name="TrendingUp" size={24} className="text-green-600" />
               </div>
             </CardContent>
@@ -424,12 +427,12 @@ const Index = () => {
 
           <Card className="hover-scale">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Превышений</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Всего записей</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <span className="text-3xl font-bold text-destructive">12</span>
-                <Icon name="AlertTriangle" size={24} className="text-destructive" />
+                <span className="text-3xl font-bold">{priceRecords.length}</span>
+                <Icon name="Database" size={24} className="text-purple-600" />
               </div>
             </CardContent>
           </Card>
@@ -551,7 +554,7 @@ const Index = () => {
                         <SelectValue placeholder="Выберите населённый пункт" />
                       </SelectTrigger>
                       <SelectContent>
-                        {mockDistricts.map((district) => (
+                        {districts.map((district) => (
                           <SelectItem key={district.id} value={district.name}>{district.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -635,7 +638,7 @@ const Index = () => {
                         <SelectValue placeholder="Выберите товар" />
                       </SelectTrigger>
                       <SelectContent>
-                        {mockProducts.map((product) => (
+                        {products.map((product) => (
                           <SelectItem key={product.id} value={product.name}>
                             <div className="flex items-center gap-2">
                               {product.name}

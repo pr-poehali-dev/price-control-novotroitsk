@@ -15,7 +15,11 @@ export const QuickStats = () => {
 
     updateData();
     window.addEventListener('storage', updateData);
-    return () => window.removeEventListener('storage', updateData);
+    window.addEventListener('dataStoreUpdate', updateData);
+    return () => {
+      window.removeEventListener('storage', updateData);
+      window.removeEventListener('dataStoreUpdate', updateData);
+    };
   }, []);
   
   const today = new Date().toISOString().split('T')[0];

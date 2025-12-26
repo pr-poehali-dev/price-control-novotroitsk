@@ -36,11 +36,13 @@ const Home = () => {
     updateData();
     
     window.addEventListener('storage', updateData);
+    window.addEventListener('dataStoreUpdate', updateData);
     
     const interval = setInterval(updateData, 2000);
     
     return () => {
       window.removeEventListener('storage', updateData);
+      window.removeEventListener('dataStoreUpdate', updateData);
       clearInterval(interval);
     };
   }, []);

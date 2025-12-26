@@ -19,7 +19,11 @@ export const RecentRecordsTable = () => {
 
     updateData();
     window.addEventListener('storage', updateData);
-    return () => window.removeEventListener('storage', updateData);
+    window.addEventListener('dataStoreUpdate', updateData);
+    return () => {
+      window.removeEventListener('storage', updateData);
+      window.removeEventListener('dataStoreUpdate', updateData);
+    };
   }, []);
   
   const recentRecords = records
