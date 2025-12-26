@@ -101,7 +101,11 @@ const Home = () => {
   }, [enrichedPriceData, selectedDistrict, selectedStore, selectedCategory, searchProduct, products]);
 
   const storeStats = useMemo(() => {
-    const storeGroups = enrichedPriceData.reduce((acc, record) => {
+    const validRecords = enrichedPriceData.filter(
+      record => record.storeName !== 'Неизвестно' && record.district !== 'Неизвестно'
+    );
+
+    const storeGroups = validRecords.reduce((acc, record) => {
       const key = `${record.storeName}-${record.district}`;
       if (!acc[key]) {
         acc[key] = { storeName: record.storeName, district: record.district, prices: [] };
@@ -113,14 +117,16 @@ const Home = () => {
     const avgPrices = Object.values(storeGroups).map(group => {
       const avg = group.prices.reduce((sum, p) => sum + p, 0) / group.prices.length;
       return { store: group.storeName, district: group.district, avgPrice: Math.round(avg) };
-    });
+    }).sort((a, b) => a.avgPrice - b.avgPrice);
 
-    const overallAvg = avgPrices.reduce((sum, s) => sum + s.avgPrice, 0) / avgPrices.length || 1;
+    if (avgPrices.length === 0) return [];
+
+    const overallAvg = avgPrices.reduce((sum, s) => sum + s.avgPrice, 0) / avgPrices.length;
 
     return avgPrices.map(stat => ({
       ...stat,
       priceIndex: stat.avgPrice / overallAvg,
-    })).slice(0, 4);
+    }));
   }, [enrichedPriceData]);
 
   const uniqueStoreNames = useMemo(() => {
