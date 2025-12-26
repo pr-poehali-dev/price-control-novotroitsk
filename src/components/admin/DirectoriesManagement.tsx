@@ -16,23 +16,13 @@ interface DirectoriesManagementProps {
   isSuperAdmin?: boolean;
 }
 
-const PRODUCT_CATEGORIES = [
-  'Социально значимые товары',
-  'Молочные продукты',
-  'Мясо и птица',
-  'Хлеб и выпечка',
-  'Овощи и фрукты',
-  'Бакалея',
-  'Яйца',
-];
-
 const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementProps) => {
   const { toast } = useToast();
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [isStoreDialogOpen, setIsStoreDialogOpen] = useState(false);
   const [isEditProductDialogOpen, setIsEditProductDialogOpen] = useState(false);
   const [isEditStoreDialogOpen, setIsEditStoreDialogOpen] = useState(false);
-  const [selectedDirectory, setSelectedDirectory] = useState<'products' | 'stores'>('products');
+  const [selectedDirectory, setSelectedDirectory] = useState<'products' | 'stores' | 'categories'>('products');
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [editingStore, setEditingStore] = useState<any>(null);
   const [photoRequired, setPhotoRequired] = useState(false);
@@ -40,7 +30,10 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
 
   const [products, setProducts] = useState<any[]>([]);
   const [stores, setStores] = useState<any[]>([]);
+  const [categories, setCategories] = useState(dataStore.getProductCategories());
   const [isLoading, setIsLoading] = useState(false);
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   const loadProducts = async () => {
     try {
@@ -62,9 +55,14 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
     }
   };
 
+  const updateCategories = () => {
+    setCategories(dataStore.getProductCategories());
+  };
+
   useEffect(() => {
     loadProducts();
     loadStores();
+    updateCategories();
   }, []);
 
   const handleAddProduct = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -304,6 +302,14 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
           <Icon name="Store" size={16} />
           Магазины
         </Button>
+        <Button
+          variant={selectedDirectory === 'categories' ? 'default' : 'outline'}
+          onClick={() => setSelectedDirectory('categories')}
+          className="gap-2"
+        >
+          <Icon name="Tag" size={16} />
+          Категории
+        </Button>
       </div>
 
       {selectedDirectory === 'products' ? (
@@ -334,14 +340,14 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="category">Категория</Label>
-                        <Select name="category" defaultValue={PRODUCT_CATEGORIES[0]}>
+                        <Select name="category" defaultValue={categories[0]?.name}>
                           <SelectTrigger id="category">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {PRODUCT_CATEGORIES.map((category) => (
-                              <SelectItem key={category} value={category}>
-                                {category}
+                            {categories.map((category) => (
+                              <SelectItem key={category.id} value={category.name}>
+                                {category.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -533,9 +539,9 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {PRODUCT_CATEGORIES.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.name}>
+                        {category.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -633,6 +639,114 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
           </form>
         </DialogContent>
       </Dialog>
+
+      {selectedDirectory === 'categories' && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Категории товаров</CardTitle>
+                <CardDescription>Управление категориями для классификации товаров</CardDescription>
+              </div>
+              <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2">
+                    <Icon name="Plus" size={16} />
+                    Добавить категорию
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Новая категория</DialogTitle>
+                    <DialogDescription>Добавьте новую категорию товаров</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="category-name">Название категории</Label>
+                      <Input 
+                        id="category-name" 
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        placeholder="Напитки" 
+                        required 
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => {
+                        setIsCategoryDialogOpen(false);
+                        setNewCategoryName('');
+                      }}
+                    >
+                      Отмена
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        if (!newCategoryName.trim()) {
+                          toast({ title: 'Ошибка', description: 'Введите название категории', variant: 'destructive' });
+                          return;
+                        }
+                        dataStore.addProductCategory({ name: newCategoryName.trim() });
+                        updateCategories();
+                        toast({ title: 'Успешно', description: 'Категория добавлена' });
+                        setIsCategoryDialogOpen(false);
+                        setNewCategoryName('');
+                      }}
+                    >
+                      Добавить
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Название</TableHead>
+                  <TableHead>Дата создания</TableHead>
+                  {isSuperAdmin && <TableHead>Действия</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {categories.map((category) => (
+                  <TableRow key={category.id}>
+                    <TableCell className="font-medium">
+                      <Badge variant="outline" className="text-sm">
+                        {category.name}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {new Date(category.createdAt).toLocaleDateString('ru-RU')}
+                    </TableCell>
+                    {isSuperAdmin && (
+                      <TableCell>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => {
+                            if (confirm(`Удалить категорию "${category.name}"?`)) {
+                              dataStore.deleteProductCategory(category.id);
+                              updateCategories();
+                              toast({ title: 'Успешно', description: 'Категория удалена' });
+                            }
+                          }}
+                        >
+                          <Icon name="Trash2" size={16} className="text-destructive" />
+                        </Button>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

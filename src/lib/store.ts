@@ -64,10 +64,25 @@ export interface PageContent {
   footerText: string;
 }
 
+export interface ProductCategory {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
 class DataStore {
   private storageKey = 'price-control-data';
 
   private defaultData = {
+    productCategories: [
+      { id: '1', name: 'Социально значимые товары', createdAt: '2024-01-01' },
+      { id: '2', name: 'Молочные продукты', createdAt: '2024-01-01' },
+      { id: '3', name: 'Мясо и птица', createdAt: '2024-01-01' },
+      { id: '4', name: 'Хлеб и выпечка', createdAt: '2024-01-01' },
+      { id: '5', name: 'Овощи и фрукты', createdAt: '2024-01-01' },
+      { id: '6', name: 'Бакалея', createdAt: '2024-01-01' },
+      { id: '7', name: 'Яйца', createdAt: '2024-01-01' },
+    ],
     users: [
       {
         id: '1',
@@ -180,7 +195,11 @@ class DataStore {
     try {
       const stored = localStorage.getItem(this.storageKey);
       if (stored) {
-        return { ...this.defaultData, ...JSON.parse(stored) };
+        const parsedData = JSON.parse(stored);
+        if (!parsedData.productCategories) {
+          parsedData.productCategories = this.defaultData.productCategories;
+        }
+        return { ...this.defaultData, ...parsedData };
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -425,6 +444,46 @@ class DataStore {
     this.data.pageContent = { ...this.data.pageContent, ...content };
     this.saveData();
     return this.data.pageContent;
+  }
+
+  getProductCategories(): ProductCategory[] {
+    return this.data.productCategories || [];
+  }
+
+  addProductCategory(category: Omit<ProductCategory, 'id' | 'createdAt'>): ProductCategory {
+    const newCategory: ProductCategory = {
+      ...category,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      createdAt: new Date().toISOString(),
+    };
+    if (!this.data.productCategories) {
+      this.data.productCategories = [];
+    }
+    this.data.productCategories.push(newCategory);
+    this.saveData();
+    return newCategory;
+  }
+
+  updateProductCategory(id: string, updates: Partial<ProductCategory>): ProductCategory | null {
+    if (!this.data.productCategories) return null;
+    const index = this.data.productCategories.findIndex(c => c.id === id);
+    if (index !== -1) {
+      this.data.productCategories[index] = { ...this.data.productCategories[index], ...updates };
+      this.saveData();
+      return this.data.productCategories[index];
+    }
+    return null;
+  }
+
+  deleteProductCategory(id: string): boolean {
+    if (!this.data.productCategories) return false;
+    const initialLength = this.data.productCategories.length;
+    this.data.productCategories = this.data.productCategories.filter(c => c.id !== id);
+    if (this.data.productCategories.length < initialLength) {
+      this.saveData();
+      return true;
+    }
+    return false;
   }
 
   resetToDefaults(): void {
