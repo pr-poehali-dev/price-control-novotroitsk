@@ -132,6 +132,9 @@ class DataStore {
       { id: '3', name: 'Куриная грудка', category: 'Мясо и птица', minPrice: 280, maxPrice: 350, photoRequired: false },
       { id: '4', name: 'Яйца куриные, 10 шт.', category: 'Яйца', minPrice: 85, maxPrice: 110, photoRequired: false },
       { id: '5', name: 'Сахар, 1 кг', category: 'Бакалея', minPrice: 55, maxPrice: 75, photoRequired: false },
+      { id: '6', name: 'Хлеб ржаной', category: 'Социально значимые товары', minPrice: 30, maxPrice: 45, photoRequired: false },
+      { id: '7', name: 'Масло подсолнечное, 1 л', category: 'Социально значимые товары', minPrice: 85, maxPrice: 120, photoRequired: false },
+      { id: '8', name: 'Крупа гречневая, 1 кг', category: 'Социально значимые товары', minPrice: 70, maxPrice: 95, photoRequired: false },
     ],
     priceRecords: [
       { id: '1', date: '2024-01-15', storeId: '1', productId: '1', price: 72, operatorId: '3', createdAt: '2024-01-15T10:30:00' },
@@ -139,6 +142,12 @@ class DataStore {
       { id: '3', date: '2024-01-14', storeId: '4', productId: '3', price: 310, operatorId: '3', createdAt: '2024-01-14T14:20:00' },
       { id: '4', date: '2024-01-14', storeId: '1', productId: '4', price: 95, operatorId: '4', createdAt: '2024-01-14T15:45:00' },
       { id: '5', date: '2024-01-13', storeId: '3', productId: '1', price: 78, operatorId: '3', createdAt: '2024-01-13T09:10:00' },
+      { id: '6', date: '2024-01-15', storeId: '1', productId: '6', price: 38, operatorId: '3', createdAt: '2024-01-15T12:00:00' },
+      { id: '7', date: '2024-01-15', storeId: '2', productId: '6', price: 42, operatorId: '4', createdAt: '2024-01-15T12:30:00' },
+      { id: '8', date: '2024-01-15', storeId: '1', productId: '7', price: 95, operatorId: '3', createdAt: '2024-01-15T13:00:00' },
+      { id: '9', date: '2024-01-15', storeId: '3', productId: '7', price: 110, operatorId: '4', createdAt: '2024-01-15T13:15:00' },
+      { id: '10', date: '2024-01-15', storeId: '1', productId: '8', price: 85, operatorId: '3', createdAt: '2024-01-15T14:00:00' },
+      { id: '11', date: '2024-01-15', storeId: '4', productId: '8', price: 78, operatorId: '4', createdAt: '2024-01-15T14:30:00' },
     ],
     systemConfig: {
       appName: 'Цена-Контроль Новотроицкое',

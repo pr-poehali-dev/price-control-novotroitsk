@@ -13,6 +13,7 @@ import { dataStore } from '@/lib/store';
 const Home = () => {
   const [selectedDistrict, setSelectedDistrict] = useState<string>('all');
   const [selectedStore, setSelectedStore] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchProduct, setSearchProduct] = useState('');
   
   const [pageContent, setPageContent] = useState(dataStore.getPageContent());
@@ -57,14 +58,22 @@ const Home = () => {
     }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [priceRecords, stores, products]);
 
+  const productCategories = useMemo(() => {
+    return Array.from(new Set(products.map(p => p.category))).sort();
+  }, [products]);
+
   const filteredData = useMemo(() => {
     return enrichedPriceData.filter((item) => {
       if (selectedDistrict !== 'all' && item.district !== selectedDistrict) return false;
       if (selectedStore !== 'all' && item.storeName !== selectedStore) return false;
+      if (selectedCategory !== 'all') {
+        const product = products.find(p => p.name === item.productName);
+        if (!product || product.category !== selectedCategory) return false;
+      }
       if (searchProduct && !item.productName.toLowerCase().includes(searchProduct.toLowerCase())) return false;
       return true;
     });
-  }, [enrichedPriceData, selectedDistrict, selectedStore, searchProduct]);
+  }, [enrichedPriceData, selectedDistrict, selectedStore, selectedCategory, searchProduct, products]);
 
   const storeStats = useMemo(() => {
     const storeGroups = enrichedPriceData.reduce((acc, record) => {
@@ -226,7 +235,7 @@ const Home = () => {
                 <CardDescription>Найдите актуальные цены на продукты в магазинах вашего района</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Населённый пункт</label>
                     <Select value={selectedDistrict} onValueChange={setSelectedDistrict}>
@@ -252,6 +261,21 @@ const Home = () => {
                         <SelectItem value="all">Все магазины</SelectItem>
                         {uniqueStoreNames.map((name) => (
                           <SelectItem key={name} value={name}>{name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Категория</label>
+                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Все категории" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Все категории</SelectItem>
+                        {productCategories.map((category) => (
+                          <SelectItem key={category} value={category}>{category}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

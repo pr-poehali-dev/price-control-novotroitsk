@@ -16,6 +16,16 @@ interface DirectoriesManagementProps {
   isSuperAdmin?: boolean;
 }
 
+const PRODUCT_CATEGORIES = [
+  'Социально значимые товары',
+  'Молочные продукты',
+  'Мясо и птица',
+  'Хлеб и выпечка',
+  'Овощи и фрукты',
+  'Бакалея',
+  'Яйца',
+];
+
 const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementProps) => {
   const { toast } = useToast();
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
@@ -25,6 +35,8 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
   const [selectedDirectory, setSelectedDirectory] = useState<'products' | 'stores'>('products');
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [editingStore, setEditingStore] = useState<any>(null);
+  const [photoRequired, setPhotoRequired] = useState(false);
+  const [editPhotoRequired, setEditPhotoRequired] = useState(false);
 
   const [products, setProducts] = useState<any[]>([]);
   const [stores, setStores] = useState<any[]>([]);
@@ -65,7 +77,7 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
       category: formData.get('category') as string,
       minPrice: parseFloat(formData.get('minPrice') as string),
       maxPrice: parseFloat(formData.get('maxPrice') as string),
-      photoRequired: formData.get('photoRequired') === 'true'
+      photoRequired: photoRequired
     };
     
     try {
@@ -78,6 +90,7 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
       if (response.ok) {
         toast({ title: 'Успешно', description: 'Товар добавлен в справочник' });
         setIsProductDialogOpen(false);
+        setPhotoRequired(false);
         await loadProducts();
       } else {
         throw new Error('Ошибка при добавлении');
@@ -104,7 +117,7 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
       category: formData.get('category') as string,
       minPrice: parseFloat(formData.get('minPrice') as string),
       maxPrice: parseFloat(formData.get('maxPrice') as string),
-      photoRequired: formData.get('photoRequired') === 'on'
+      photoRequired: editPhotoRequired
     };
     
     try {
@@ -118,6 +131,7 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
         toast({ title: 'Успешно', description: 'Товар обновлён' });
         setIsEditProductDialogOpen(false);
         setEditingProduct(null);
+        setEditPhotoRequired(false);
         await loadProducts();
       } else {
         throw new Error('Ошибка при обновлении');
@@ -253,6 +267,7 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
 
   const openEditProduct = (product: any) => {
     setEditingProduct(product);
+    setEditPhotoRequired(product.photoRequired || false);
     setIsEditProductDialogOpen(true);
   };
 
@@ -319,16 +334,16 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="category">Категория</Label>
-                        <Select name="category" defaultValue="Молочные продукты">
+                        <Select name="category" defaultValue={PRODUCT_CATEGORIES[0]}>
                           <SelectTrigger id="category">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Молочные продукты">Молочные продукты</SelectItem>
-                            <SelectItem value="Мясо и птица">Мясные продукты</SelectItem>
-                            <SelectItem value="Хлеб и выпечка">Хлебобулочные изделия</SelectItem>
-                            <SelectItem value="Овощи">Овощи и фрукты</SelectItem>
-                            <SelectItem value="Бакалея">Бакалея</SelectItem>
+                            {PRODUCT_CATEGORIES.map((category) => (
+                              <SelectItem key={category} value={category}>
+                                {category}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -344,7 +359,11 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
                       </div>
                       <div className="flex items-center justify-between">
                         <Label htmlFor="photo-required">Требуется фото</Label>
-                        <Switch id="photo-required" name="photoRequired" />
+                        <Switch 
+                          id="photo-required" 
+                          checked={photoRequired}
+                          onCheckedChange={setPhotoRequired}
+                        />
                       </div>
                     </div>
                     <DialogFooter>
@@ -514,11 +533,11 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Молочные продукты">Молочные продукты</SelectItem>
-                    <SelectItem value="Мясо и птица">Мясные продукты</SelectItem>
-                    <SelectItem value="Хлеб и выпечка">Хлебобулочные изделия</SelectItem>
-                    <SelectItem value="Овощи">Овощи и фрукты</SelectItem>
-                    <SelectItem value="Бакалея">Бакалея</SelectItem>
+                    {PRODUCT_CATEGORIES.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -550,8 +569,8 @@ const DirectoriesManagement = ({ isSuperAdmin = false }: DirectoriesManagementPr
                 <Label htmlFor="edit-photo-required">Требуется фото</Label>
                 <Switch 
                   id="edit-photo-required" 
-                  name="photoRequired" 
-                  defaultChecked={editingProduct?.photoRequired} 
+                  checked={editPhotoRequired}
+                  onCheckedChange={setEditPhotoRequired}
                 />
               </div>
             </div>
